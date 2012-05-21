@@ -51,13 +51,13 @@ def _get_stim_conf():
 
 	stim_conf[ "diam_deg" ] = 14.4
 
-	# gives a density of 30 dots / deg ^2
-	stim_conf[ "n_dipoles" ] = 3110
+	# gives a density of 25 dots / deg ^2
+	stim_conf[ "n_dipoles" ] = 2592
 
-	# this is 3*sigma
-	stim_conf[ "dot_size_deg" ] = 0.12
+	# this is 6*sigma
+	stim_conf[ "dot_size_deg" ] = 0.15
 
-	stim_conf[ "pole_sep_deg" ] = 0.16
+	stim_conf[ "pole_sep_deg" ] = 0.14
 
 	stim_conf[ "ori_deg" ] = np.array( ( 0, 90 ) )
 
