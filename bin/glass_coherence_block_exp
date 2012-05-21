@@ -10,7 +10,7 @@ import argparse
 
 import numpy as np
 
-import glass_coherence_block.exp
+import glass_coherence_block.exp.run
 
 desc = "Executes the Glass coherence block design fMRI experiment"
 
@@ -60,7 +60,7 @@ parser.add_argument( "--start",
 parser.add_argument( "--end",
                      help = "End run",
                      type = int,
-                     default = len( run_info )
+                     default = 12
                    )
 
 args = parser.parse_args()
@@ -71,12 +71,12 @@ if len( args.subj_id ) != 5 or args.subj_id[ 0 ] != "s":
 
 for i_run in np.arange( args.start - 1, args.end ):
 
-	print "Executing: glass_coherence_block.exp.run( %s, %d, %s )" % (
+	print "Executing: glass_coherence_block.exp.run( %s, %d )" % (
 	      args.subj_id, i_run + 1 )
 
-	exit_status = glass_coherence_block.exp.run( args.subj_id,
-                                               i_run + 1
-                                             )
+	exit_status = glass_coherence_block.exp.run.run( args.subj_id,
+                                                   i_run + 1
+                                                 )
 
 	if exit_status == 1:
 		print "Aborting sequence"
