@@ -61,9 +61,8 @@ preproc_steps = ( "convert",
                   "roi-img",
                   "roi",
                   "vtc",
+                  "vtc-cull",
                   "design",
-                  "localiser",
-                  "vox-select",
                   "vtc-avg"
                 )
 
@@ -94,34 +93,30 @@ elif args.preproc_step == "correct":
 	                                                        )
 
 elif args.preproc_step == "fieldmaps":
-	ns_aperture.fmri_analysis.preproc.fieldmaps( subj_paths,
-	                                             conf[ "acq" ],
-	                                             subj_conf
-	                                           )
+	glass_coherence_block.analysis.preproc.fieldmaps( subj_paths,
+	                                                  conf,
+	                                                  subj_conf
+	                                                )
 
 elif args.preproc_step == "undistort":
-	ns_aperture.fmri_analysis.preproc.unwarp( subj_paths,
-	                                          conf[ "acq" ],
-	                                          conf[ "preproc" ],
-	                                          subj_conf
-	                                        )
+	glass_coherence_block.analysis.preproc.unwarp( subj_paths, conf )
 
 elif args.preproc_step == "roi-img":
-	ns_aperture.fmri_analysis.preproc.make_roi_images( subj_paths,
-	                                                   conf[ "ana" ],
-	                                                   conf[ "preproc" ]
-	                                                 )
+	glass_coherence_block.analysis.preproc.make_roi_images( subj_paths, conf )
 
 elif args.preproc_step == "roi":
-	ns_aperture.fmri_analysis.preproc.prepare_rois( subj_paths,
-	                                                conf
-	                                              )
+	glass_coherence_block.analysis.preproc.prepare_rois( subj_paths, conf )
 
 elif args.preproc_step == "vtc":
-	ns_aperture.fmri_analysis.preproc.form_vtcs( subj_paths,
-	                                             conf,
-	                                             subj_conf
-	                                           )
+	glass_coherence_block.analysis.preproc.form_vtcs( subj_paths,
+	                                                  conf,
+	                                                  subj_conf
+	                                                )
+
+elif args.preproc_step == "vtc-cull":
+	glass_coherence_block.analysis.preproc.roi_vtc_cull( subj_paths,
+	                                                     conf
+	                                                   )
 
 elif args.preproc_step == "design":
 	ns_aperture.fmri_analysis.preproc.get_design( subj_paths,
@@ -129,21 +124,10 @@ elif args.preproc_step == "design":
 	                                              subj_conf,
 	                                            )
 
-elif args.preproc_step == "localiser":
-	ns_aperture.fmri_analysis.preproc.localiser_analysis( subj_paths,
-	                                                      conf
-	                                                    )
-
-
-elif args.preproc_step == "vox-select":
-	ns_aperture.fmri_analysis.preproc.voxel_selection( subj_paths,
-	                                                   conf
-	                                                 )
-
 elif args.preproc_step == "vtc-avg":
-	ns_aperture.fmri_analysis.preproc.avg_vtcs( subj_paths,
-	                                            conf
-	                                          )
+	glass_coherence_block.analysis.preproc.avg_vtcs( subj_paths,
+	                                                 conf
+	                                               )
 
 
 elif args.preproc_step == "task":

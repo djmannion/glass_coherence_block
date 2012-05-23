@@ -117,19 +117,6 @@ def st_motion_correct( paths, conf, subj_conf ):
 
 def fieldmaps( paths, conf, subj_conf ):
 	"""Prepare the fieldmaps.
-
-	Parameters
-	----------
-	paths : dict of strings
-		Subject path structure, as returned by 'get_subj_paths' in
-		'ns_aperture.config'.
-	conf : dict
-		Experiment configuration, as returned by 'get_conf' in
-		'ns_aperture.config'.
-	subj_conf : dict
-		Subject configuration, as returned by 'get_subj_conf' in
-		'ns_aperture.config', for this subject.
-
 	"""
 
 	# duplicate the delta TE for each fieldmap acquired
@@ -148,22 +135,12 @@ def fieldmaps( paths, conf, subj_conf ):
 def unwarp( paths, conf ):
 	"""Uses the fieldmaps to unwarp the functional images and create a mean image
 	of all the unwarped functional images.
-
-	Parameters
-	----------
-	paths : dict of strings
-		Subject path structure, as returned by 'get_subj_paths' in
-		'ns_aperture.config'.
-	conf : dict
-		Experiment configuration, as returned by 'get_conf' in
-		'ns_aperture.config'.
-
 	"""
 
 	# combine the experiment and localiser functional info
-	func_corr = paths[ "func" ][ "corr" ] + paths[ "loc" ][ "corr" ]
-	func_fmap = paths[ "func" ][ "fmap" ] + paths[ "loc" ][ "fmap" ]
-	func_uw = paths[ "func" ][ "uw" ] + paths[ "loc" ][ "uw" ]
+	func_corr = paths[ "func" ][ "corr" ]
+	func_fmap = paths[ "func" ][ "fmap" ]
+	func_uw = paths[ "func" ][ "uw" ]
 
 	# duplicate the dwell time and phase encode direction for each image
 	dwell_ms = [ conf[ "acq" ][ "dwell_ms" ] ] * len( func_corr )
@@ -192,16 +169,6 @@ def unwarp( paths, conf ):
 def make_roi_images( paths, conf ):
 	"""Converts the ROI matlab files to nifti images in register with the
 	subject's anatomical.
-
-	Parameters
-	----------
-	paths : dict of strings
-		Subject path structure, as returned by 'get_subj_paths' in
-		'ns_aperture.config'.
-	conf : dict
-		Experiment configuration, as returned by 'get_conf' in
-		'ns_aperture.config'.
-
 	"""
 
 	n_rois = len( conf[ "ana" ][ "rois" ] )
@@ -228,16 +195,6 @@ def make_roi_images( paths, conf ):
 
 def prepare_rois( paths, conf ):
 	"""Extracts and writes the coordinates of each ROI.
-
-	Parameters
-	----------
-	paths : dict of strings
-		Subject path structure, as returned by 'get_subj_paths' in
-		'ns_aperture.config'.
-	conf : dict
-		Experiment configuration, as returned by 'get_conf' in
-		'ns_aperture.config'.
-
 	"""
 
 	for ( i_roi, roi_name ) in enumerate( conf[ "ana" ][ "rois" ] ):
@@ -260,20 +217,30 @@ def prepare_rois( paths, conf ):
 
 def form_vtcs( paths, conf, subj_conf ):
 	"""Extracts the voxel time courses for each voxel in each ROI
-
-	Parameters
-	----------
-	paths : dict of strings
-		Subject path structure, as returned by 'get_subj_paths' in
-		'ns_aperture.config'.
-	conf : dict
-		Experiment configuration, as returned by 'get_conf' in
-		'ns_aperture.config'.
-	subj_conf : dict
-		Subject configuration, as returned by 'get_subj_conf' in
-		'ns_aperture.config', for this subject.
-
 	"""
+
+	n_full_vols_per_run = ( conf[ "exp" ][ "run_full_len_s" ] /
+	                        conf[ "acq" ][ "tr_s" ]
+	                      )
+
+	n_vols_per_run = ( conf[ "exp" ][ "run_len_s" ] /
+	                   conf[ "acq" ][ "tr_s" ]
+	                 )
+
+	n_start_cull_vols = ( conf[ "exp" ][ "pre_len_s" ] /
+	                      conf[ "acq" ][ "tr_s" ]
+	                    )
+
+	n_end_cull_vols = ( conf[ "exp" ][ "post_len_s" ] /
+	                    conf[ "acq" ][ "tr_s" ]
+	                  )
+
+	valid_vol_range = np.arange( n_start_cull_vols,
+	                             n_full_vols_per_run - n_end_cull_vols
+	                           ).astype( "int" )
+
+	assert( len( valid_vol_range ) == n_vols_per_run )
+
 
 	for roi_name in conf[ "ana" ][ "rois" ]:
 
@@ -283,7 +250,7 @@ def form_vtcs( paths, conf, subj_conf ):
 		n_voxels = coords.shape[ 1 ]
 
 		# initialise the vtc
-		vtc = np.empty( ( conf[ "exp" ][ "n_vols_per_run" ],
+		vtc = np.empty( ( n_full_vols_per_run,
 		                  subj_conf[ "n_runs" ],
 		                  n_voxels
 		                )
@@ -311,9 +278,8 @@ def form_vtcs( paths, conf, subj_conf ):
 				# store the voxel data
 				vtc[ :, i_run, i_voxel ] = vox_data
 
-
-		# discard the unwanted volumes and compensate for the HRF delay
-		vtc = vtc[ conf[ "exp" ][ "run_range_hrf_corr" ], :, : ]
+		# discard the unwanted volumes
+		vtc = vtc[ valid_vol_range, :, : ]
 
 		# check that it has been filled up correctly
 		assert( np.sum( np.isnan( vtc ) ) == 0 )
@@ -323,62 +289,56 @@ def form_vtcs( paths, conf, subj_conf ):
 		         arr = vtc
 		       )
 
-		# initialise the localiser vtc
-		loc_vtc = np.empty( ( conf[ "exp" ][ "n_vols_per_run" ],
-		                      subj_conf[ "n_loc_runs" ],
-		                      n_voxels
-		                    )
-		                  )
 
-		# fill with NaNs, to be safe
-		loc_vtc.fill( np.NAN )
+def roi_vtc_cull( paths, conf ):
+	"""Culls voxels from each ROI based on their mean-normalised variance."""
 
-		# loop through each unwarped image (run) file
-		for ( i_run, run_path ) in enumerate( paths[ "loc" ][ "uw" ] ):
+	for roi_name in conf[ "ana" ][ "rois" ]:
 
-			# load the run file
-			run_img = nipy.load_image( "%s.nii" % run_path ).get_data()
+		# load the coordinates
+		coords = np.load( "%s-%s.npy" % ( paths[ "ana" ][ "coords"], roi_name ) )
 
-			# iterate through each voxel in the roi
-			for i_voxel in xrange( n_voxels ):
+		# load the vtc
+		vtc = np.load( "%s-%s.npy" % ( paths[ "ana" ][ "vtc" ], roi_name ) )
 
-				# extract the voxel data (timecourse) at the voxel coordinate
-				vox_data = run_img[ coords[ 0, i_voxel ],
-				                    coords[ 1, i_voxel ],
-				                    coords[ 2, i_voxel ],
-				                    :
-				                  ]
+		# do a quick check to make sure the coords have the expected shape
+		assert( coords.shape[ 0 ] == 3 )
+		assert( coords.shape[ 1 ] == vtc.shape[ -1 ] )
 
-				# store the voxel data
-				loc_vtc[ :, i_run, i_voxel ] = vox_data
+		# this is a logical matrix showing if the voxel passes the selection
+		# criteria for each run
+		retain = np.empty( ( vtc.shape[ 1:3 ] ) )
 
-		# discard the unwanted volumes and compensate for the HRF delay
-		loc_vtc = loc_vtc[ conf[ "exp" ][ "run_range_hrf_corr" ], :, : ]
+		cull_p = conf[ "ana" ][ "cull_prop" ]
 
-		# check that it has been filled up correctly
-		assert( np.sum( np.isnan( loc_vtc ) ) == 0 )
+		for i_run in xrange( vtc.shape[ 1 ] ):
 
-		# save the localiser vtc
-		np.save( "%s-%s.npy" % ( paths[ "ana" ][ "loc_vtc" ], roi_name ),
-		         arr = loc_vtc
+			run_vtc = vtc[ :, i_run, : ]
+
+			retain[ i_run, : ] = fmri_tools.preproc.roi_vox_trim_var( run_vtc,
+			                                                          cull_p
+			                                                        )
+
+		# to be retained, has to be retained for all runs
+		vox_to_retain = np.all( retain, axis = 0 )
+
+		# do the cullin'
+		vtc = vtc[ :, :, vox_to_retain ]
+		coords = coords[ :, vox_to_retain ]
+
+		# and re-save
+		np.save( "%s-%s.npy" % ( paths[ "ana" ][ "coords_sel" ], roi_name ),
+		         coords
+		       )
+
+		# save the vtc
+		np.save( "%s-%s.npy" % ( paths[ "ana" ][ "vtc_sel" ], roi_name ),
+		         vtc
 		       )
 
 
 def get_design( paths, conf, subj_conf ):
 	"""Extracts and writes the design matrix from the session log.
-
-	Parameters
-	----------
-	paths : dict of strings
-		Subject path structure, as returned by 'get_subj_paths' in
-		'ns_aperture.config'.
-	conf : dict
-		Experiment configuration, as returned by 'get_conf' in
-		'ns_aperture.config'.
-	subj_conf : dict
-		Subject configuration, as returned by 'get_subj_conf' in
-		'ns_aperture.config', for this subject.
-
 	"""
 
 	design = np.empty( ( conf[ "exp" ][ "n_valid_blocks" ],
@@ -439,146 +399,8 @@ def get_design( paths, conf, subj_conf ):
 	return design
 
 
-def localiser_analysis( paths, conf ):
-	"""Performs statistical analysis of the localiser data.
-
-	Parameters
-	----------
-	paths : dict of strings
-		Subject path structure, as returned by 'get_subj_paths' in
-		'ns_aperture.config'.
-	conf : dict
-		Experiment configuration, as returned by 'get_conf' in
-		'ns_aperture.config'.
-
-	"""
-
-	# load the design info for the localiser
-	design = np.load( paths[ "design" ][ "loc_design" ] )
-
-	for roi_name in conf[ "ana" ][ "rois" ]:
-
-		# load the (trimmed and HRF corrected) vtc
-		loc_vtc = np.load( "%s-%s.npy" % ( paths[ "ana" ][ "loc_vtc" ],
-		                                   roi_name
-		                                 )
-		                 )
-
-		( _, n_runs, n_voxels ) = loc_vtc.shape
-
-		stat = np.empty( ( n_voxels, 2 ) )
-		stat.fill( np.NAN )
-
-		for i_voxel in xrange( n_voxels ):
-
-			vox_data = [ [], [] ]
-
-			for i_run in xrange( n_runs ):
-
-				run_vtc = loc_vtc[ :, i_run, i_voxel ]
-				run_vtc = fmri_tools.preproc.hp_filter( run_vtc,
-				                                        poly_ord = conf[ "ana" ][ "poly_ord" ]
-				                                      )[ 0 ]
-
-				run_design = design[ :, i_run, : ].astype( "int" )
-
-				for i_blk in xrange( run_design.shape[ 0 ] ):
-
-					blk_vol_range = np.arange( run_design[ i_blk, 0 ],
-					                           run_design[ i_blk, 0 ] +
-					                           conf[ "exp" ][ "n_vols_per_blk" ]
-					                         ).astype( "int" )
-
-					blk_data = np.mean( run_vtc[ blk_vol_range ] )
-
-					vox_data[ run_design[ i_blk, 1 ] ].append( blk_data )
-
-			stat[ i_voxel, : ] = scipy.stats.ttest_ind( vox_data[ 0 ],
-			                                            vox_data[ 1 ]
-			                                          )
-
-		np.save( "%s-%s.npy" % ( paths[ "ana" ][ "loc_stat" ],
-		                         roi_name
-		                       ),
-		         arr = stat
-		       )
-
-
-def voxel_selection( paths, conf ):
-	"""Finds the voxels in each ROI that are significantly activated by the
-	   localiser, and extracts their coordinates and contrains the vtcs.
-
-	Parameters
-	----------
-	paths : dict of strings
-		Subject path structure, as returned by 'get_subj_paths' in
-		'ns_aperture.config'.
-	conf : dict
-		Experiment configuration, as returned by 'get_conf' in
-		'ns_aperture.config'.
-
-	"""
-
-	for roi_name in conf[ "ana" ][ "rois" ]:
-
-		# all the voxels for this ROI
-		full_coords = np.load( "%s-%s.npy" % ( paths[ "ana" ][ "coords" ],
-		                                       roi_name
-		                                     )
-		                     )
-
-		# the localiser analysis
-		loc_stat = np.load( "%s-%s.npy" % ( paths[ "ana" ][ "loc_stat" ],
-		                                    roi_name
-		                                  )
-		                  )
-
-		# make sure they have the right number of voxels
-		assert( full_coords.shape[ 1 ] == loc_stat.shape[ 0 ] )
-
-		# activation probability for each voxel
-		p_val = loc_stat[ :, 1 ]
-
-		# perform the thresholding
-		i_valid = ( p_val < conf[ "ana" ][ "loc_p_thresh" ] )
-
-		# cull the coords not above threshold
-		sel_coords = full_coords[ :, i_valid ]
-
-		np.save( "%s-%s.npy" % ( paths[ "ana" ][ "coords_sel" ], roi_name ),
-		         sel_coords
-		       )
-
-		# apply culling to the vtcs
-		vtc = np.load( "%s-%s.npy" % ( paths[ "ana" ][ "vtc" ], roi_name ) )
-		vtc = vtc[ :, :, i_valid ]
-		np.save( "%s-%s.npy" % ( paths[ "ana" ][ "vtc_sel" ], roi_name ),
-		         vtc
-		       )
-
-		loc_vtc = np.load( "%s-%s.npy" % ( paths[ "ana" ][ "loc_vtc" ], roi_name ) )
-		loc_vtc = loc_vtc[ :, :, i_valid ]
-		np.save( "%s-%s.npy" % ( paths[ "ana" ][ "loc_vtc_sel" ], roi_name ),
-		         loc_vtc
-		       )
-
-
 def avg_vtcs( paths, conf ):
-	"""Averages the timecourses over all the (selected) voxels in a ROI and
-	   performs high-pass filtering.
-
-	Parameters
-	----------
-	paths : dict of strings
-		Subject path structure, as returned by 'get_subj_paths' in
-		'ns_aperture.config'.
-	conf : dict
-		Experiment configuration, as returned by 'get_analysis_conf' in
-		'ns_aperture.config'.
-
-	"""
-
-	p_ord = conf[ "ana" ][ "poly_ord" ]
+	"""Averages the timecourses over all the (selected) voxels in a ROI"""
 
 	for roi_name in conf[ "ana" ][ "rois" ]:
 
@@ -591,17 +413,6 @@ def avg_vtcs( paths, conf ):
 		# average over voxels
 		vtc = np.mean( vtc, axis = 2 )
 
-		filt_vtc = np.empty( vtc.shape )
-		filt_vtc.fill( np.NAN )
-
-		for i_run in xrange( filt_vtc.shape[ 1 ] ):
-
-			filt_vtc[ :, i_run ] = fmri_tools.preproc.hp_filter( vtc[ :, i_run ],
-			                                                     poly_ord = p_ord
-			                                                   )[ 0 ]
-
-		assert( not np.any( np.isnan( filt_vtc ) ) )
-
 		np.save( "%s-%s.npy" % ( paths[ "ana" ][ "vtc_avg" ], roi_name ),
-		         filt_vtc
+		         vtc
 		       )

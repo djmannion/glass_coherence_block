@@ -51,31 +51,26 @@ Edit ``get_subj_conf`` within ``glass_coherence_block/config.py`` and add the ne
 
 For example::
 
-    s1000 = { "subj_id" : "s1000",
-              "acq_date" : "20120427",
-              "n_runs" : 10,
+    s1000 = { "subj_id" : "s1021",
+              "acq_date" : "20120522",
+              "n_runs" : 12,
               "n_fmaps" : 1,
-              "run_mot_order" : ( 6, 7, 8, 9, 10, 1, 2, 3, 4, 5 ),
-              "x_range" : ( 95, 70 ),
-              "y_range" : ( 6, 20 ),
-              "z_range" : ( 3, 6 ),
+              "run_st_mot_order" : ( 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6 ),
               "comments" : ""
             }
-
-``N_range`` refers to the field-of-view (in voxels) to extract from the images. Use ``fslview`` to check these.
 
 
 Pre-processing
 --------------
 
-Most of the pre-processing is done with the command ``radial_bias_layers_preproc``.
+Most of the pre-processing is done with the command ``glass_coherence_block_preproc``.
 For help on using this script, run::
 
-    radial_bias_layers_preproc --help
+    glass_coherence_block_preproc --help
 
 Typical usage is::
 
-    radial_bias_layers_preproc sXXXX stage
+    glass_coherence_block_preproc sXXXX stage
 
 where ``sXXXX`` is the subject ID and ``stage`` is the preprocessing stage (see below).
 
@@ -84,23 +79,54 @@ The stages are as follows:
 Conversion
 ~~~~~~~~~~
 
-Converts from the raw scanner format to a set of 4D NIFTI files and crops the FOV::
+Converts from the raw scanner format to a set of 4D NIFTI files::
 
-    radial_bias_layers_preproc sXXXX convert
+    glass_coherence_block_preproc sXXXX convert
 
-After execution, open up each NIFTI file and inspect for image quality.
+After execution, open up each NIFTI file and inspect for image quality and inspect the summary image to see how much motion there was and as a comparison for the next step.
 
 
 Correction
 ~~~~~~~~~~
 
-Applies a motion correction procedure and creates a session mean image::
+Applies a motion correction procedure and creates session mean and summary images::
 
-    radial_bias_layers_preproc sXXXX correct
+    glass_coherene_block_preproc sXXXX correct
 
 *N.B. This stage takes quite a while...*
 
 After execution, open up the session summary image that it creates and view in movie mode. This gives a good sense for how well the motion correction worked. You can also inspect the saved motion correction estimates to see how much movement there was.
+
+
+Fieldmaps
+~~~~~~~~
+
+Prepares the fieldmaps::
+
+    glass_coherence_block_preproc SXXXX fieldmaps
+
+
+Unwarping
+~~~~~~~~
+
+Before running, need to have made a symbolic link in each functional run directory to that run's fieldmap. For example::
+
+    ln -s ../../fmap/f1/sXXXX_glass_coherence_block_fmap_1-fmap.nii sXXXX_glass_coherence_block_run_1-fmap.nii
+
+Then, to use the fieldmaps to unwarp the functional images to remove the spatial distortion::
+
+    glass_coherence_block_preproc sXXXX undistort
+
+To verify that the unwarping has worked correctly:
+
+* Run ``fslview``.
+* Load the original or corrected image from a given run.
+* Add the magnitude image from the fieldmap as an overlay.
+* Notice the geometric distortions in the functional data.
+* Add the undistorted image as an overlay, and hide the uncorrected image.
+* Toggle the visibility of the undistorted image, and verify that the geometry now aligns well with that of the fieldmap's magnitude image.
+
+Also, look at the session summary image produced and make sure that all looks good across the session.
 
 
 ROI to images
@@ -108,7 +134,7 @@ ROI to images
 
 Converts the raw ROI files from mrLoadRet into NIFTI masks::
 
-    radial_bias_layers_preproc sXXXX roi-img
+    glass_coherence_block_preproc sXXXX roi-img
 
 To check this has worked correctly, load the subject's anatomical image and overlay the ROI images - they should lie within expected locations.
 
@@ -118,45 +144,31 @@ Coregistration
 
 The anatomical and ROI images are in a completely different space to the functionals, so they need to be coregistered.
 
-This is somewhat tricky for the high-resolutions we have for the functionals, so it needs to be a multi-step process.
+The automatic FSL tools are *horrible* at doing this coregistration (in my experience), so we need to do it more manually using SPM.
 
 Rough alignment
 ^^^^^^^^^^^^^^^
 
 The coregistration algorithm is helped enormously if the images are in rough world-space alignment before it begins.
 
-#. In SPM, click ``Display`` and select the **magnitude** fieldmap image.
+#. In SPM, click ``Display`` and select the mean functional image.
 #. Place the crosshairs over a prominent landmark, such as the furthest posterior region of the occipital lobes. Note down the 3 values in the ``mm`` box.
 #. Click ``Display`` again, this time selecting the anatomical image.
-#. Place the crosshairs over the same landmark as was used in the magnitude image, and again note the 3 values in the ``mm`` box.
-#. Subtract (element-wise) the anatomical ``mm`` values from the magnitude image ``mm`` values, and use the output to populate the ``right``, ``forward``, and ``up`` fields.
-#. To check your calculations, change the ``mm`` field to match what it was for the magnitude image and the crosshairs should move to the same landmark.
-#. Click ''Reorient images'' and select the anatomical **and the ROI, distance, and ret images**.
+#. Place the crosshairs over the same landmark as was used in the functionals, and again note the 3 values in the ``mm`` box.
+#. Subtract (element-wise) the anatomical ``mm`` values from the functional ``mm`` values, and use the output to populate the ``right``, ``forward``, and ``up`` fields.
+#. To check your calculations, change the ``mm`` field to match what it was for the functional and the crosshairs should move to the same landmark.
+#. Click ''Reorient images'' and select the anatomical **and the ROI images**.
 
-
-Initial coregistration
-^^^^^^^^^^^^^^^^^^^^^^
-
-#. In SPM, click ``Coregister (Estimate)``.
-#. As the ``Reference image``, select the magnitude image.
-#. As the ``Source image``, select the anatomical image.
-#. As the ``Other images``, select all the ROI, distance, and ret images.
-#. Under ``File``, click ``Save batch`` and call it ``coreg_a.mat`` under the ``anat`` directory.
-#. Click on the play icon to set it running.
-
-
-Final coregistration
-^^^^^^^^^^^^^^^^^^^^
+Coregistration
+^^^^^^^^^^^^^^
 
 #. In SPM, click ``Coregister (Estimate & Reslice)``.
 #. As the ``Reference image``, select the mean functional image.
 #. As the ``Images to reslice``, select the anatomical image.
-#. As the ``Other images``, select the ROI, distance, and ret images.
-#. Under ``Estimation options``, change ``Separation`` to ``[2,1]``.
-#. Under ``Reslice options``, change ``Interpolation`` to ``Nearest neighbour`` and ``Filename prefix`` to ``rs_``.
-#. Under ``File``, click ``Save batch`` and call it ``coreg_b.mat`` under the ``anat`` directory.
+#. As the ``Other images``, select all the ROI images.
+#. Under ``Reslice options``, change ``Interpolation`` to ``Nearest neighbour`` and ``Filename prefix`` to ``rs``.
+#. Under ``File``, click ``Save batch`` and call it ``coreg.mat`` under the ``anat`` directory.
 #. Click on the play icon to set it running.
-
 
 Verification
 ^^^^^^^^^^^^
@@ -169,53 +181,49 @@ To check that the coregistration has performed well:
 
 
 ROI preparation
-~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~
 
 Converts the ROI image masks to a set of coordinates, save in numpy format::
 
-    radial_bias_layers_preproc sXXXX roi
+    glass_coherence_block_preproc sXXXX roi
 
 
 Voxel timecourse extraction
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Extracts voxel timecourses for each voxel in each ROI::
 
-    radial_bias_layers_preproc sXXXX vtc
+    glass_coherence_block_preproc sXXXX vtc
+
+The resulting timecourses have been trimmed.
 
 
-Cortical depth extraction
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Voxel culling
+~~~~~~~~~~~~~
 
-Extracts the gray matter depth for each voxel in each ROI::
+Removes voxels that have high mean-normalised variance::
 
-    radial_bias_layers_preproc sXXXX depth
+    glass_coherence_block_preproc sXXXX vtc-cull
 
 
-Retinotopy phase extraction
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Timecourse averaging
+~~~~~~~~~~~~~~~~~~~~
 
-Extracts the retinotopic phase (corresponding to visual field location) for each voxel in each ROI::
+Averages over the voxels in each ROI::
 
-    radial_bias_layers_preproc sXXXX ret
+    glass_coherence_block_preproc sXXXX vtc-avg
 
 
 Design
-~~~~~~
+~~~~~
 
 Computes the experimental design from the logfiles::
 
-    radial_bias_layers_preproc sXXXX design
+    glass_coherence_block_preproc sXXXX design
 
-The extracted design corresponds to the trimmed and HRF corrected voxel timecourses.
+The extracted design corresponds to the trimmed voxel timecourses.
 
 
-Filtering
-~~~~~~~~~
-
-Applies a high-pass filter to each voxel in each ROI::
-
-    radial_bias_layers_preproc sXXXX vtc-filt
 
 
 Subject-level analysis
