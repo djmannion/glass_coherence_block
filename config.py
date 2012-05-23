@@ -41,7 +41,8 @@ def _get_ana_conf():
 	ana_conf = { "rois" : ( "V1", "V2", "V3", "V3AB", "hV4" ),
 	             "roi_ax" : ( 2, 1, 0 ),
 	             "roi_ax_order" : ( 1, -1, -1 ),
-	             "poly_ord" : 4
+	             "poly_ord" : 4,
+	             "cull_prop" : 0.15
 	           }
 
 	return ana_conf
