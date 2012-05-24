@@ -240,7 +240,7 @@ def get_seq_ind():
 	seq_ind : dict, containing items (all ints):
 		time_s : event onset time, in seconds
 		block_num : run block number
-		block_type : whether an 'A' or 'B' block
+		block_type : condition number
 		coh : pattern coherence for this event
 		ori : pattern orientation for this event
 		contrast : pattern contrast for this event
