@@ -11,6 +11,7 @@ import nipy
 import numpy as np
 import scipy.io
 
+import glass_coherence_block.exp.run
 import fmri_tools.preproc, fmri_tools.utils
 
 def convert( paths ):
@@ -337,66 +338,76 @@ def roi_vtc_cull( paths, conf ):
 		       )
 
 
-def get_design( paths, conf, subj_conf ):
-	"""Extracts and writes the design matrix from the session log.
+def get_evt_info( paths, conf, subj_conf ):
+	"""Extracts and writes the stimulus event information from the session log.
 	"""
 
-	design = np.empty( ( conf[ "exp" ][ "n_valid_blocks" ],
-	                     subj_conf[ "n_runs" ],
-	                     2
-	                   )
-	                 )
-	design.fill( np.NAN )
+	# each event will be appended to this
+	evt_info = []
 
-	# carries the block indices (0-based) we care about
-	block_range = np.arange( conf[ "exp" ][ "rej_start_blocks" ],
-	                         conf[ "exp" ][ "n_blocks" ] -
-	                         conf[ "exp" ][ "rej_end_blocks" ]
-	                       )
+	# so we know what each indice in the log file means
+	i_evt_log = glass_coherence_block.exp.run.get_seq_ind()
 
 	for i_run in xrange( subj_conf[ "n_runs" ] ):
 
-		log_path = os.path.join( paths[ "design" ][ "log_dir" ],
-		                         "%s_ns_aperture_fmri_seq_%d.npy" % (
-		                         subj_conf[ "subj_id" ],
-		                         i_run + 1
-		                         )
-		                       )
+		# load the run sequence
+		log = np.load( os.path.join( paths[ "design" ][ "log_dir" ],
+		                             "%s_glass_coherence_block_seq_%d.npy" % (
+		                             subj_conf[ "subj_id" ], i_run + 1 )
+		                           )
+		             )
 
-		log = np.load( log_path )
+		# iterate through each event in the log
+		for i_evt in xrange( log.shape[ 0 ] ):
 
-		# iterate through only the block indices we care about
-		for ( i_block, block) in enumerate( block_range ):
+			evt = log[ i_evt, : ]
 
-			# find the first event corresponding to this block indice
-			# because they're indices, need to add 1 to match the 1-based storage in
-			# the log
-			i_block_start_evt = np.where( log[ :, 1 ] == ( block + 1 ) )[ 0 ][ 0 ]
+			# pull out the event's onset time
+			evt_on_s = evt[ i_evt_log[ "time_s" ] ]
+			# adjust the onset time to take into account the time at the beginning
+			# that we cull
+			evt_on_s -= conf[ "exp" ][ "pre_len_s" ]
 
-			# find the start volume for this block, discounting invalid blocks
-			block_start_vol = i_block * conf[ "exp" ][ "n_vols_per_blk" ]
+			evt_off_s = evt_on_s + conf[ "exp" ][ "evt_stim_s" ]
 
-			# pull out the condition type for the block
-			block_cond = log[ i_block_start_evt, 2 ]
+			evt_cond = evt[ i_evt_log[ "block_type" ] ]
 
-			# store
-			design[ i_block, i_run, 0 ] = block_start_vol
-			design[ i_block, i_run, 1 ] = block_cond
+			evt_ori = np.round( evt[ i_evt_log[ "ori" ] ] )
 
-	# make sure there are equal numbers of each condition type, as expected
-	assert( np.all( np.sum( design[ :, :, 1 ] == 0 ) ==
-	                np.sum( design[ :, :, 1 ] == 1 )
-	              )
-	      )
+			# don't include it if it is a blank condition
+			if evt_cond > 0:
 
-	np.save( paths[ "design" ][ "design" ], design )
+				if evt_cond == 1:
+					if evt_ori==0:
+						evt_c = 1
+					elif evt_ori==90:
+						evt_c = 2
+				elif evt_cond == 2:
+					if evt_ori==0:
+						evt_c = 3
+					elif evt_ori==90:
+						evt_c = 4
+				elif evt_cond == 3:
+					if evt_ori==0:
+						evt_c = 5
+					elif evt_ori==90:
+						evt_c = 6
+				if evt_cond == 4:
+					if evt_ori==0:
+						evt_c = 7
+					elif evt_ori==90:
+						evt_c = 8
 
-	# localiser follows the same main design, only for less runs
-	loc_design = design[ :, :subj_conf[ "n_loc_runs" ], : ]
+				evt_info.append( [ ( i_run + 1 ),
+				                   evt_on_s,
+				                   evt_off_s,
+				                   evt_c
+				                 ]
+				               )
 
-	np.save( paths[ "design" ][ "loc_design" ], loc_design )
+	evt_info = np.array( evt_info )
 
-	return design
+	np.save( paths[ "design" ][ "evt_info" ], evt_info )
 
 
 def avg_vtcs( paths, conf ):

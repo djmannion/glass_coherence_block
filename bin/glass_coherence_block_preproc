@@ -62,7 +62,7 @@ preproc_steps = ( "convert",
                   "roi",
                   "vtc",
                   "vtc-cull",
-                  "design",
+                  "evt-info",
                   "vtc-avg"
                 )
 
@@ -118,11 +118,11 @@ elif args.preproc_step == "vtc-cull":
 	                                                     conf
 	                                                   )
 
-elif args.preproc_step == "design":
-	ns_aperture.fmri_analysis.preproc.get_design( subj_paths,
-	                                              conf,
-	                                              subj_conf,
-	                                            )
+elif args.preproc_step == "evt-info":
+	glass_coherence_block.analysis.preproc.get_evt_info( subj_paths,
+	                                                     conf,
+	                                                     subj_conf,
+	                                                   )
 
 elif args.preproc_step == "vtc-avg":
 	glass_coherence_block.analysis.preproc.avg_vtcs( subj_paths,

@@ -591,9 +591,9 @@ def get_subj_paths( subj_id ):
 
 		design[ "log_dir" ] = os.path.join( subj_dir, "log" )
 
-		design[ "design" ] = os.path.join( subj_dir,
-		                                   "design.npy"
-		                                 )
+		design[ "evt_info" ] = os.path.join( subj_dir,
+		                                     "evt_info.npy"
+		                                   )
 
 		return design
 
