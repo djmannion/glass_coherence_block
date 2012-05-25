@@ -214,40 +214,38 @@ Averages over the voxels in each ROI::
     glass_coherence_block_preproc sXXXX vtc-avg
 
 
-Design
-~~~~~
+Event info
+~~~~~~~~~~
 
-Computes the experimental design from the logfiles::
+Computes the experimental design info from the logfiles::
 
-    glass_coherence_block_preproc sXXXX design
+    glass_coherence_block_preproc sXXXX evt-info
 
 The extracted design corresponds to the trimmed voxel timecourses.
-
-
 
 
 Subject-level analysis
 ----------------------
 
-The subject-level analysis is done with the command ``radial_bias_layers_subj_analysis``
+The subject-level analysis is done with the command ``glass_coherence_block_subj_analysis``
 For help on using this script, run::
 
-    radial_bias_layers_subj_analysis --help
+    glass_coherence_block_subj_analysis --help
 
 Typical usage is::
 
-    radial_bias_layers_subj_analysis sXXXX stage
+    glass_coherence_block_subj_analysis sXXXX stage
 
 where ``sXXXX`` is the subject ID and ``stage`` is the preprocessing stage (see below).
 
 The stages are as follows:
 
-Blocks
-~~~~~~
+Beta weights
+~~~~~~~~~~~~
 
-Extracts the block responses for each condition and ROI::
+Extracts the beta weights for each ROI based on a GLM analysis::
 
-    radial_bias_layers_subj_analysis sXXXX blocks
+    glass_coherence_block_subj_analysis sXXXX beta
 
 
 

@@ -372,9 +372,7 @@ def get_subj_paths( subj_id ):
 		analysis[ "coords" ] = os.path.join( analysis[ "dir" ], "coords" )
 		analysis[ "coords_sel" ] = os.path.join( analysis[ "dir" ], "coords_sel" )
 
-		analysis[ "block" ] = os.path.join( analysis[ "dir" ], "block" )
-
-		analysis[ "cond_diff" ] = os.path.join( analysis[ "dir" ], "cond_diff" )
+		analysis[ "beta" ] = os.path.join( analysis[ "dir" ], "beta" )
 
 		return analysis
 
