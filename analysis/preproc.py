@@ -372,36 +372,13 @@ def get_evt_info( paths, conf, subj_conf ):
 
 			evt_cond = evt[ i_evt_log[ "block_type" ] ]
 
-			evt_ori = np.round( evt[ i_evt_log[ "ori" ] ] )
-
 			# don't include it if it is a blank condition
 			if evt_cond > 0:
-
-				if evt_cond == 1:
-					if evt_ori==0:
-						evt_c = 1
-					elif evt_ori==90:
-						evt_c = 2
-				elif evt_cond == 2:
-					if evt_ori==0:
-						evt_c = 3
-					elif evt_ori==90:
-						evt_c = 4
-				elif evt_cond == 3:
-					if evt_ori==0:
-						evt_c = 5
-					elif evt_ori==90:
-						evt_c = 6
-				if evt_cond == 4:
-					if evt_ori==0:
-						evt_c = 7
-					elif evt_ori==90:
-						evt_c = 8
 
 				evt_info.append( [ ( i_run + 1 ),
 				                   evt_on_s,
 				                   evt_off_s,
-				                   evt_c
+				                   evt_cond
 				                 ]
 				               )
 
