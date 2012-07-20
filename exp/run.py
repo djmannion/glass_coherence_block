@@ -16,7 +16,8 @@ try:
 	psychopy.logging.console.setLevel( psychopy.logging.CRITICAL )
 
 except ImportError:
-	print "Warning: PsychoPy not available"
+
+	pass
 
 import glass_coherence_block.config
 import stimuli.psychopy_ext, stimuli.utils
