@@ -25,7 +25,7 @@ def _get_func_paths( conf, paths ):
 	                         "func"
 	                       )
 
-	func_exp_dir = os.path.join( func_dir, "exp" )
+	func_exp_dir = os.path.join( func_dir )
 
 	func_paths = fmri_tools.paths.get_func_paths( func_exp_dir,
 	                                              conf[ "subj" ][ "subj_id" ],
@@ -149,11 +149,11 @@ def _get_log_paths( conf, paths ):
 	log[ "base_dir" ] = log_dir
 
 	log[ "seq_base" ] = os.path.join( log_dir,
-	                                  "%s_ns_aperture_fmri_seq_" % subj_id
+	                                  "%s_glass_coherence_block_seq_" % subj_id
 	                                )
 
 	log[ "task_base" ] = os.path.join( log_dir,
-	                                   "%s_ns_aperture_fmri_task_" % subj_id
+	                                   "%s_glass_coherence_block_task_" % subj_id
 	                                 )
 
 	paths[ "log" ] = log
@@ -173,17 +173,14 @@ def _get_ana_paths( conf, paths ):
 	                        "analysis"
 	                      )
 
-	ana[ "exp_dir" ] = os.path.join( ana_dir, "exp" )
+	ana[ "exp_dir" ] = os.path.join( ana_dir )
 
 
-	ana[ "exp_cond" ] = "coh"
-
-	ana[ "exp_time_file" ] = os.path.join( ana[ "exp_dir" ],
-	                                       "%s_%s_exp-%s_stim_times.txt" % (
-	                                         subj_id,
-	                                         conf[ "exp" ][ "id" ],
-	                                         ana[ "exp_cond" ] )
-	                                     )
+	ana[ "exp_time_files" ] = os.path.join( ana[ "exp_dir" ],
+	                                        "%s_%s_stim_times-" % (
+	                                          subj_id,
+	                                          conf[ "exp" ][ "id" ] )
+	                                      )
 
 	ana[ "exp_fits" ] = os.path.join( ana[ "exp_dir" ],
 	                                  "%s_%s_exp-fits" % ( subj_id,

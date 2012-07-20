@@ -17,19 +17,19 @@ def convert( paths, conf ):
 	"""Converts the functionals and fieldmaps from dicom to nifti"""
 
 	# aggregate the dicom directories
-	raw_dirs = ( paths[ "func_exp" ][ "raw_dirs" ] +
+	raw_dirs = ( paths[ "func" ][ "raw_dirs" ] +
 	             paths[ "fmap" ][ "raw_mag_dirs" ] +
 	             paths[ "fmap" ][ "raw_ph_dirs" ]
 	           )
 
 	# aggregate the output directories
-	nii_dirs = ( paths[ "func_exp" ][ "run_dirs" ] +
+	nii_dirs = ( paths[ "func" ][ "run_dirs" ] +
 	             paths[ "fmap" ][ "fmap_dirs" ] +
 	             paths[ "fmap" ][ "fmap_dirs" ]
 	           )
 
 	# aggregate the images paths
-	img_paths = ( paths[ "func_exp" ][ "orig_files" ] +
+	img_paths = ( paths[ "func" ][ "orig_files" ] +
 	              paths[ "fmap" ][ "mag_files" ] +
 	              paths[ "fmap" ][ "ph_files" ]
 	            )
@@ -57,7 +57,7 @@ def convert( paths, conf ):
 	assert( fmri_tools.utils.files_are_unique( full_img_paths ) )
 
 	# files to go into the summary
-	summ_paths = paths[ "func_exp" ][ "orig_files" ]
+	summ_paths = paths[ "func" ][ "orig_files" ]
 
 	# make a summary image from the files
 	fmri_tools.preproc.gen_sess_summ_img( summ_paths,
@@ -131,11 +131,11 @@ def unwarp( paths, conf ):
 	"""
 
 	# combine the experiment and localiser functional info
-	func_fmap = paths[ "func_exp" ][ "fmap_files" ]
+	func_fmap = paths[ "func" ][ "fmap_files" ]
 
-	func_corr = paths[ "func_exp" ][ "corr_files" ]
+	func_corr = paths[ "func" ][ "corr_files" ]
 
-	func_uw = paths[ "func_exp" ][ "uw_files" ]
+	func_uw = paths[ "func" ][ "uw_files" ]
 
 	for i_run in xrange( len( func_corr )  ):
 
@@ -164,7 +164,7 @@ def trim( paths, conf ):
 	"""Trims the timecourses"""
 
 	exp_start_vol = conf[ "exp" ][ "pre_len_s" ] / conf[ "acq" ][ "tr_s" ]
-	exp_n_vol = conf[ "ana" ][ "run_len_s" ] / conf[ "acq" ][ "tr_s" ]
+	exp_n_vol = conf[ "exp" ][ "run_len_s" ] / conf[ "acq" ][ "tr_s" ]
 
 	for ( uw_file, trim_file ) in zip( paths[ "func" ][ "uw_files" ],
 	                                   paths[ "func" ][ "trim_files" ]
@@ -197,9 +197,9 @@ def vol_to_surf( paths, conf ):
 
 	start_dir = os.getcwd()
 
-	vol_files = paths[ "func_exp" ][ "trim_files" ]
+	vol_files = paths[ "func" ][ "trim_files" ]
 
-	surf_files = paths[ "func_exp" ][ "surf_files" ]
+	surf_files = paths[ "func" ][ "surf_files" ]
 
 	for ( vol_file, surf_file ) in zip( vol_files, surf_files ):
 
@@ -239,53 +239,21 @@ def vol_to_surf( paths, conf ):
 def design_prep( paths, conf ):
 	"""Prepares the designs for GLM analysis"""
 
-	# first, prepare the 'onset' regressor; this models the tail of the first
-	# block response, which remains after excluding the timepoints corresponding
-	# to the first block's stimulation
-	exp_run_len_vol = conf[ "exp" ][ "run_len_s" ] / conf[ "acq" ][ "tr_s" ]
-
-	x = tempfile.NamedTemporaryFile()
-
-	onset_cmd = [ "3dDeconvolve",
-	              "-polort", "-1",
-	              "-nodata",  "%d" % exp_run_len_vol, "%.3f" % conf[ "acq" ][ "tr_s" ],
-	              "-local_times",
-	              "-num_stimts", "1",
-	              "-stim_times", "1", "1D: 0", "SPMG1(16)",
-	              "-x1D", x.name,
-	              "-x1D_stop"
-	            ]
-
-	fmri_tools.utils.run_cmd( onset_cmd,
-	                          env = fmri_tools.utils.get_env(),
-	                          log_path = paths[ "summ" ][ "log_file" ]
-	                        )
-
-	tc = np.loadtxt( "%s.xmat.1D" % x.name )
-
-	start_vol = int( conf[ "ana" ][ "exp_run_start_s" ] / conf[ "acq" ][ "tr_s" ] )
-	n_vol = int( conf[ "ana" ][ "exp_run_dur_s" ] / conf[ "acq" ][ "tr_s" ] )
-
-	tc = tc[ start_vol:( start_vol + n_vol ) ]
-
-	A_reg = np.tile( np.hstack( ( tc, np.zeros( len( tc ) ) ) ),
-	                 conf[ "exp" ][ "n_runs" ] / 2
-	               )
-
-	np.savetxt( paths[ "log" ][ "reg_A" ], A_reg, "%.16f" )
-
-	B_reg = np.tile( np.hstack( ( np.zeros( len( tc ) ), tc ) ),
-	                 conf[ "exp" ][ "n_runs" ] / 2
-	               )
-
-	np.savetxt( paths[ "log" ][ "reg_B" ], B_reg, "%.16f" )
+	n_cond = len( conf[ "stim" ][ "coh_levels" ] )
 
 	# exp
-	run_file = open( paths[ "ana" ][ "exp_time_file" ], "w" )
+	run_files = [ open( "%s%d.txt" % ( paths[ "ana" ][ "exp_time_files" ],
+	                                   cond_num
+	                                 ),
+	                    "w"
+	                  )
+	              for cond_num in np.arange( 1, n_cond + 1 )
+	            ]
 
 	for i_run in xrange( conf[ "subj" ][ "n_runs" ] ):
 
 		run_times = []
+		run_conds = []
 
 		run_seq = np.load( "%s%d.npy" % ( paths[ "log" ][ "seq_base" ], i_run + 1 ) )
 
@@ -293,60 +261,34 @@ def design_prep( paths, conf ):
 
 			is_transition = ( run_seq[ i_evt, 1 ] != run_seq[ i_evt - 1, 1 ] )
 
-			is_coh = ( run_seq[ i_evt, 2 ] == 0 )
-
-			if np.logical_and( is_transition, is_coh ):
+			if is_transition:
 
 				start_time_s = run_seq[ i_evt, 0 ]
 
+				cond = int( run_seq[ i_evt, 2 ] )
+
 				run_times.append( start_time_s )
+				run_conds.append( cond )
 
 		run_times = np.array( run_times )
+		run_conds = np.array( run_conds )
 
-		run_times -= conf[ "ana" ][ "exp_run_start_s" ]
+		run_times -= conf[ "exp" ][ "pre_len_s" ]
 
 		ok = np.logical_and( run_times >= 0,
-		                     run_times < conf[ "ana" ][ "exp_run_dur_s" ]
+		                     run_times < conf[ "exp" ][ "run_len_s" ]
 		                   )
 
+		# exclude fixation blocks
+		ok = np.logical_and( ok, run_conds > 0 )
+
 		run_times = run_times[ ok ]
+		run_conds = run_conds[ ok ]
 
-		for run_time in run_times:
+		for ( i_evt, run_time ) in enumerate( run_times ):
 
-			run_file.write( "%.5f\t" % run_time )
+			run_files[ run_conds[ i_evt ] - 1 ].write( "%.5f\t" % run_time )
 
-		run_file.write( "\n" )
+		_ = [ run_file.write( "\n" ) for run_file in run_files ]
 
-	run_file.close()
-
-	# loc
-	loc_order = [ "AB", "BA" ]
-
-	loc_time_files = [ open( loc_time_file, "w" )
-	                   for loc_time_file in paths[ "ana" ][ "loc_time_files" ]
-	                 ]
-
-	for loc_ord in loc_order:
-
-		block_seq = ns_aperture.fmri.loc.get_block_seq( loc_ord,
-		                                                conf[ "exp" ][ "loc_n_blocks" ]
-		                                              )
-
-		i_lvf = np.where( block_seq == 1 )[ 0 ]
-		lvf_t = i_lvf * conf[ "exp" ][ "block_len_s" ]
-
-		for t in lvf_t:
-			loc_time_files[ 0 ].write( "%.5f\t" % t )
-
-		i_rvf = np.where( block_seq == 2 )[ 0 ]
-		rvf_t = i_rvf * conf[ "exp" ][ "block_len_s" ]
-
-		for t in rvf_t:
-			loc_time_files[ 1 ].write( "%.5f\t" % t )
-
-		loc_time_files[ 0 ].write( "\n" )
-		loc_time_files[ 1 ].write( "\n" )
-
-	loc_time_files[ 0 ].close()
-	loc_time_files[ 1 ].close()
-
+	_ = [ run_file.close() for run_file in run_files ]
