@@ -161,8 +161,8 @@ def _get_subj_conf( subj_id = None ):
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
 	          "run_st_mot_order" : ( 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6 ),
-	          "node_k" : { "lh" : 0,
-	                       "rh" : 0
+	          "node_k" : { "lh" : 140847,
+	                       "rh" : 141381
 	                     }
 	        }
 

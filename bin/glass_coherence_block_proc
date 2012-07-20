@@ -8,6 +8,7 @@ import argparse
 
 import glass_coherence_block.config, glass_coherence_block.analysis.paths
 import glass_coherence_block.analysis.preproc
+import glass_coherence_block.analysis.analysis
 
 def main():
 	"""Execution function"""
