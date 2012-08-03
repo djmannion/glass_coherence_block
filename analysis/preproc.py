@@ -236,6 +236,50 @@ def vol_to_surf( paths, conf ):
 	os.chdir( start_dir )
 
 
+def surf_smooth( paths, conf ):
+	"""a"""
+
+	start_dir = os.getcwd()
+
+	surf_files = paths[ "func" ][ "surf_files" ]
+
+	smooth_files = paths[ "func" ][ "smooth_files" ]
+
+	for ( surf_file, smooth_file ) in zip( surf_files, smooth_files ):
+
+		file_dir = os.path.split( surf_file )[ 0 ]
+
+		os.chdir( file_dir )
+
+		for hemi in [ "lh", "rh" ]:
+
+			out_file = "%s_%s.niml.dset" % ( smooth_file,
+			                                 hemi
+			                               )
+
+			in_file = "%s_%s.niml.dset" % ( surf_file, hemi )
+
+			smooth_cmd = [ "SurfSmooth",
+			               "-surf_A", "smoothwm",
+			               "-surf_B", "pial",
+			               "-spec", "%s%s.spec" % ( paths[ "reg" ][ "spec" ], hemi ),
+			               "-met", "HEAT_07",
+			               "-target_fwhm", "3",
+			               "-blurmaster", in_file,
+			               "-detrend_master",
+			               "-input", in_file,
+			               "-output", out_file,
+			               "-overwrite"
+			             ]
+
+			fmri_tools.utils.run_cmd( smooth_cmd,
+			                          env = fmri_tools.utils.get_env(),
+			                          log_path = paths[ "summ" ][ "log_file" ]
+			                        )
+
+	os.chdir( start_dir )
+
+
 def design_prep( paths, conf ):
 	"""Prepares the designs for GLM analysis"""
 

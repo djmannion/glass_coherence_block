@@ -40,11 +40,20 @@ def _get_ana_conf():
 	"""
 	"""
 
-	ana_conf = { "rois" : ( "V1", "V2", "V3", "V3AB", "hV4" ),
-	             "roi_ax" : ( 2, 1, 0 ),
-	             "roi_ax_order" : ( 1, -1, -1 ),
+	rois = [ [ "v1", "1" ],
+	         [ "v2", "2" ],
+	         [ "v3", "3" ],
+	         [ "hv4", "4" ],
+	         [ "v3ab", "5" ],
+	         [ "lo1", "6" ],
+	         [ "lo2", "7" ],
+#	         [ "loc", "8" ],
+#	         [ "hmtp", "9" ]
+	      ]
+
+	ana_conf = { "rois" : rois,
 	             "poly_ord" : 4,
-	             "cull_prop" : 0.15
+	             "loc_p" : 0.01
 	           }
 
 	return ana_conf
@@ -179,7 +188,10 @@ def _get_subj_conf( subj_id = None ):
 	          "comments" : "",
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
-	          "run_st_mot_order" : ( 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6 )
+	          "run_st_mot_order" : ( 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6 ),
+	          "node_k" : { "lh" : 130318,
+	                       "rh" : 131151
+	                     }
 	        }
 
 	s1008 = { "subj_id" : "s1008",
@@ -187,7 +199,10 @@ def _get_subj_conf( subj_id = None ):
 	          "comments" : "",
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
-	          "run_st_mot_order" : ( 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6 )
+	          "run_st_mot_order" : ( 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6 ),
+	          "node_k" : { "lh" : 140427,
+	                       "rh" : 141898
+	                     }
 	        }
 
 	s1010 = { "subj_id" : "s1010",
@@ -196,16 +211,30 @@ def _get_subj_conf( subj_id = None ):
 	                       asleep""",
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
-	          "run_st_mot_order" : ( 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6 )
+	          "run_st_mot_order" : ( 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6 ),
+	          "node_k" : { "lh" : 124787,
+	                       "rh" : 127339
+	                     }
 	        }
 
+	s1032 = { "subj_id" : "s1032",
+	          "acq_date" : "20120612",
+	          "comments" : "",
+	          "n_runs" : 12,
+	          "n_fmaps" : 1,
+	          "run_st_mot_order" : ( 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6 ),
+	          "node_k" : { "lh" : 126078,
+	                       "rh" : 126201
+	                     }
+	        }
 
 
 	subj_conf = { "s1021" : s1021,
 	              "s1011" : s1011,
 	              "s1000" : s1000,
 	              "s1008" : s1008,
-	              "s1010" : s1010
+	              "s1010" : s1010,
+	              "s1032" : s1032
 	            }
 
 	if subj_id is None:
