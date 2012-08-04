@@ -77,13 +77,15 @@ def exp_glm( paths, conf ):
 		                  "-glt_label", "2", "quadratic",
 		                  "-gltsym", con[ 2 ],
 		                  "-glt_label", "3", "cubic",
+		                  "-gltsym", "SYM: +0.00 | +0.33 | +0.66 | +1.00",
+		                  "-glt_label", "4", "all",
 		                  "-xjpeg", "exp_design.png",
 		                  "-x1D", "exp_design",
 		                  "-jobs", "16",
 		                  "-fitts", "%s.niml.dset" % fit_file,
 		                  "-bucket", "%s.niml.dset" % glm_file,
 		                  "-cbucket", "%s.niml.dset" % beta_file,
-		                  "-tout",
+		                  "-tout", "-fout",
 		                  "-overwrite",
 		                  "-x1D_stop"
 		                ]
@@ -101,7 +103,7 @@ def exp_glm( paths, conf ):
 		                                 ]
 		                               ),
 		             "-Rbeta", "%s_reml.niml.dset" % beta_file,
-		             "-tout",
+		             "-tout", "-fout",
 		             "-Rbuck", "%s_reml.niml.dset" % glm_file,
 		             "-overwrite"
 		           ]
@@ -112,7 +114,7 @@ def exp_glm( paths, conf ):
 		                        )
 
 		# convert to full
-		full_glm_file = "%s_reml-full" % ( glm_file, hemi )
+		full_glm_file = "%s_reml-full" % glm_file
 
 		pad_node = "%d" % conf[ "subj" ][ "node_k" ][ hemi ]
 
@@ -223,6 +225,8 @@ def beta_to_psc( paths, conf ):
 	# these are the indices into the beta files for the data we want to convert
 	beta_briks = "60,61,62,63"
 
+	beta_briks = "9,15"
+
 	start_dir = os.getcwd()
 
 	os.chdir( paths[ "ana" ][ "exp_dir" ] )
@@ -265,6 +269,11 @@ def beta_to_psc( paths, conf ):
 		            bltc_file
 		          ]
 
+		avg_cmd = [ "3dMean",
+		            "-prefix", bl_file,
+		            "%s[0,5,10,15,20,25,30,35,40,45,50,55]" % beta_file
+		          ]
+
 		fmri_tools.utils.run_cmd( avg_cmd,
 		                          env = fmri_tools.utils.get_env(),
 		                          log_path = paths[ "summ" ][ "log_file" ]
@@ -272,14 +281,15 @@ def beta_to_psc( paths, conf ):
 
 		# dataset to hold the percent signal change, to write
 		psc_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "exp_psc" ], hemi )
+		beta_file = "%s_%s_reml.niml.dset" % ( paths[ "ana" ][ "exp_glm" ], hemi )
 
 		# the input beta file, with sub-brick selector
 		beta_sel = "%s[%s]" % ( beta_file, beta_briks )
 
 		# check that the label is as expected
-		beta_label = fmri_tools.utils.get_dset_label( beta_sel )
+#		beta_label = fmri_tools.utils.get_dset_label( beta_sel )
 
-		assert( beta_label == [ "0.00#0", "0.33#0", "0.66#0", "1.00#0" ] )
+#		assert( beta_label == [ "0.00#0", "0.33#0", "0.66#0", "1.00#0" ] )
 
 		# compute psc
 		# from http://afni.nimh.nih.gov/sscc/gangc/TempNorm.html
@@ -301,6 +311,8 @@ def beta_to_psc( paths, conf ):
 		full_psc_file = "%s_%s-full" % ( paths[ "ana" ][ "exp_psc" ], hemi )
 
 		pad_node = "%d" % conf[ "subj" ][ "node_k" ][ hemi ]
+
+		pad_node = "ld141"
 
 		fmri_tools.utils.sparse_to_full( psc_file,
 		                                 full_psc_file,
