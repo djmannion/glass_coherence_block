@@ -66,7 +66,8 @@ def main():
 	                  "surf_smooth",
 	                  "design_prep",
 	                  "exp_glm",
-	                  "mask_nodes",
+	                  "loc_mask",
+	                  "trends",
 	                  "beta_to_psc",
 	                  "roi_xtr"
 	                )
@@ -119,8 +120,11 @@ def main():
 	elif args.preproc_step == "exp_glm":
 		glass_coherence_block.analysis.analysis.exp_glm( paths, conf )
 
-	elif args.preproc_step == "mask_nodes":
-		glass_coherence_block.analysis.analysis.mask_nodes( paths, conf )
+	elif args.preproc_step == "loc_mask":
+		glass_coherence_block.analysis.analysis.loc_mask( paths, conf )
+
+	elif args.preproc_step == "trends":
+		glass_coherence_block.analysis.analysis.trends( paths, conf )
 
 	elif args.preproc_step == "beta_to_psc":
 		glass_coherence_block.analysis.analysis.beta_to_psc( paths, conf )

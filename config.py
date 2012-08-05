@@ -21,13 +21,14 @@ def get_conf( subj_id = None ):
 
 	"""
 
-	conf = { "exp" : _get_exp_conf(),
-	         "stim" : _get_stim_conf(),
-	         "task" : _get_task_conf(),
-	         "acq" : _get_acq_conf(),
-	         "ana" : _get_ana_conf(),
-	         "all_subj" : _get_subj_conf()
-	       }
+	conf = {}
+
+	conf[ "exp" ] = _get_exp_conf()
+	conf[ "stim" ] = _get_stim_conf()
+	conf[ "task" ] = _get_task_conf()
+	conf[ "acq" ] = _get_acq_conf()
+	conf[ "ana" ] = _get_ana_conf( conf )
+	conf[ "all_subj" ] = _get_subj_conf()
 
 	if subj_id is not None:
 
@@ -36,7 +37,7 @@ def get_conf( subj_id = None ):
 	return conf
 
 
-def _get_ana_conf():
+def _get_ana_conf( conf ):
 	"""
 	"""
 
@@ -51,9 +52,16 @@ def _get_ana_conf():
 #	         [ "hmtp", "9" ]
 	      ]
 
+	hrf_model = "SPMG1(%d)" % conf[ "exp" ][ "block_len_s" ]
+
+	poly_ord = "3"
+
+	loc_q = 0.01
+
 	ana_conf = { "rois" : rois,
-	             "poly_ord" : 4,
-	             "loc_p" : 0.01
+	             "poly_ord" : poly_ord,
+	             "loc_q" : loc_q,
+	             "hrf_model" : hrf_model
 	           }
 
 	return ana_conf

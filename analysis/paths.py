@@ -41,10 +41,6 @@ def _get_func_paths( conf, paths ):
 	                               for orig_file in func_paths[ "orig_files" ]
 	                             ]
 
-	func_paths[ "smooth_files" ] = [ orig_file.replace( "orig", "smooth" )
-	                                 for orig_file in func_paths[ "orig_files" ]
-	                               ]
-
 	paths[ "func" ] = func_paths
 
 	return paths
@@ -130,7 +126,7 @@ def _get_reg_paths( conf, paths ):
 	                                 )
 
 	reg_paths[ "spec" ] = os.path.join( surf_dir,
-	                                    "std.141.%s_" % subj_id
+	                                    "%s_" % subj_id
 	                                  )
 
 	paths[ "reg" ] = reg_paths
@@ -222,11 +218,17 @@ def _get_ana_paths( conf, paths ):
 	                                                     )
 	                                )
 
-	ana[ "exp_fdr" ] = os.path.join( ana[ "exp_dir" ],
-	                                  "%s_%s_exp-fdr" % ( subj_id,
-	                                                      conf[ "exp" ][ "id" ]
-	                                                    )
-	                                )
+	ana[ "exp_loc_fdr" ] = os.path.join( ana[ "exp_dir" ],
+	                                     "%s_%s_exp-loc_fdr" % ( subj_id,
+	                                                             conf[ "exp" ][ "id" ]
+	                                                           )
+	                                   )
+
+	ana[ "exp_trend_fdr" ] = os.path.join( ana[ "exp_dir" ],
+	                                       "%s_%s_exp-trend_fdr" % ( subj_id,
+	                                                                 conf[ "exp" ][ "id" ]
+	                                                               )
+	                                     )
 
 	ana[ "exp_loc_mask" ] = os.path.join( ana[ "exp_dir" ],
 	                                      "%s_%s_exp-loc_mask" % ( subj_id,
