@@ -21,6 +21,8 @@ def exp_glm( paths, conf ):
 
 	n_cond = len( conf[ "stim" ][ "coh_levels" ] )
 
+	hrf_model = conf[ "ana" ][ "hrf_model" ]
+
 	stim_files = [ "%s%d.txt" % ( paths[ "ana" ][ "exp_time_files" ],
 	                              cond_num
 	                            )
@@ -31,9 +33,11 @@ def exp_glm( paths, conf ):
 
 	con_coef = [ [ -3, -1, +1, +3 ],  # linear
 	             [ +1, -1, -1, +1 ],  # quadratic
-	             [ -1, +3, -3, +1 ]  # cubic
+	             [ -1, +3, -3, +1 ],  # cubic
+	             [ +1, +1, +1, +1 ]   # mean
 	           ]
 
+	con_labels = [ "lin", "quad", "cub", "mean" ]
 
 	con = [ "SYM: %d*%s %d*%s %d*%s %d*%s" % (
 	          coef[ 0 ], stim_labels[ 0 ],
@@ -55,98 +59,104 @@ def exp_glm( paths, conf ):
 		          ]
 
 		glm_cmd.extend( [ "%s_%s.niml.dset" % ( surf_file, hemi )
-		                  for surf_file in paths[ "func" ][ "smooth_files" ]
+		                  for surf_file in paths[ "func" ][ "surf_files" ]
 		                ]
 		              )
 
 		glm_cmd.extend( [ "-force_TR", "%.3f" % conf[ "acq" ][ "tr_s" ],
-		                  "-polort", "4",
-		                  "-num_stimts", "4",
-		                  "-stim_label", "1", stim_labels[ 0 ],
-		                  "-stim_times", "1", stim_files[ 0 ], "SPMG1(16)",
-		                  "-stim_label", "2", stim_labels[ 1 ],
-		                  "-stim_times", "2", stim_files[ 1 ], "SPMG1(16)",
-		                  "-stim_label", "3", stim_labels[ 2 ],
-		                  "-stim_times", "3", stim_files[ 2 ], "SPMG1(16)",
-		                  "-stim_label", "4", stim_labels[ 3 ],
-		                  "-stim_times", "4", stim_files[ 3 ], "SPMG1(16)",
+		                  "-polort", conf[ "ana" ][ "poly_ord" ],
 		                  "-local_times",
-		                  "-gltsym", con[ 0 ],
-		                  "-glt_label", "1", "linear",
-		                  "-gltsym", con[ 1 ],
-		                  "-glt_label", "2", "quadratic",
-		                  "-gltsym", con[ 2 ],
-		                  "-glt_label", "3", "cubic",
-		                  "-gltsym", "SYM: +0.00 | +0.33 | +0.66 | +1.00",
-		                  "-glt_label", "4", "all",
 		                  "-xjpeg", "exp_design.png",
 		                  "-x1D", "exp_design",
-		                  "-jobs", "16",
 		                  "-fitts", "%s.niml.dset" % fit_file,
 		                  "-bucket", "%s.niml.dset" % glm_file,
 		                  "-cbucket", "%s.niml.dset" % beta_file,
-		                  "-tout", "-fout",
+		                  "-jobs", "16",
+		                  "-tout",
 		                  "-overwrite",
-		                  "-x1D_stop"
+		                  "-x1D_stop",
+		                  "-num_stimts", "%d" % n_cond
 		                ]
 		              )
+
+		for i_stim in xrange( n_cond ):
+
+			glm_cmd.extend( [ "-stim_label",
+			                  "%d" % ( i_stim + 1 ),
+			                  stim_labels[ i_stim ]
+			                ]
+			              )
+
+			glm_cmd.extend( [ "-stim_times",
+			                  "%d" % ( i_stim + 1 ),
+			                  stim_files[ i_stim ],
+			                  hrf_model
+			                ]
+			              )
+
+		for i_con in xrange( len( con ) ):
+
+			glm_cmd.extend( [ "-gltsym",
+			                  con[ i_con ]
+			                ]
+			              )
+
+			glm_cmd.extend( [ "-glt_label",
+			                  "%d" % ( i_con + 1 ),
+			                  con_labels[ i_con ]
+			                ]
+			              )
 
 		fmri_tools.utils.run_cmd( glm_cmd,
 		                          env = fmri_tools.utils.get_env(),
 		                          log_path = paths[ "summ" ][ "log_file" ]
 		                        )
 
+		# delete the annoying command file that 3dDeconvolve writes
+		os.remove( "%s.REML_cmd" % glm_file )
+
 		reml_cmd = [ "3dREMLfit",
 		             "-matrix", "exp_design.xmat.1D",
-		             "-input", " ".join( [ "%s_%s.niml.dset" % ( surf_file, hemi )
-		                                   for surf_file in paths[ "func" ][ "smooth_files" ]
-		                                 ]
-		                               ),
 		             "-Rbeta", "%s_reml.niml.dset" % beta_file,
-		             "-tout", "-fout",
+		             "-tout",
 		             "-Rbuck", "%s_reml.niml.dset" % glm_file,
-		             "-overwrite"
+		             "-overwrite",
+		             "-input"
 		           ]
+
+		reml_cmd.append( " ".join( [ "%s_%s.niml.dset" % ( surf_file, hemi )
+		                             for surf_file in paths[ "func" ][ "surf_files" ]
+		                           ]
+		                         )
+		               )
 
 		fmri_tools.utils.run_cmd( reml_cmd,
 		                          env = fmri_tools.utils.get_env(),
 		                          log_path = paths[ "summ" ][ "log_file" ]
 		                        )
 
-		# convert to full
-		full_glm_file = "%s_reml-full" % glm_file
-
-		pad_node = "%d" % conf[ "subj" ][ "node_k" ][ hemi ]
-
-		pad_node = "ld141"
-
-		fmri_tools.utils.sparse_to_full( "%s_reml.niml.dset" % glm_file,
-		                                 full_glm_file,
-		                                 pad_node = pad_node,
-		                                 log_path = paths[ "summ" ][ "log_file" ],
-		                                 overwrite = True
-		                               )
-
 	os.chdir( start_dir )
 
 
-def mask_nodes( paths, conf ):
+def loc_mask( paths, conf ):
 	"""a"""
 
 	start_dir = os.getcwd()
 
 	os.chdir( paths[ "ana" ][ "exp_dir" ] )
 
+	loc_stat_brik = "16"
+
 	for hemi in [ "lh", "rh" ]:
 
 		glm_file = "%s_%s_reml.niml.dset" % ( paths[ "ana" ][ "exp_glm" ], hemi )
 
-		fdr_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "exp_fdr" ], hemi )
+		loc_fdr_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "exp_loc_fdr" ], hemi )
 
-		# first, need to convert the statistics to a q (FDR) value
+		# convert the statistics for the localiser (mean contrast) to a q (FDR) value
 		fdr_cmd = [ "3dFDR",
-		            "-input", glm_file,
-		            "-prefix", fdr_file,
+		            "-input", "%s[%s]" % ( glm_file, loc_stat_brik ),
+		            "-prefix", loc_fdr_file,
 		            "-qval",
 		            "-float",
 		            "-overwrite"
@@ -157,66 +167,61 @@ def mask_nodes( paths, conf ):
 		                          log_path = paths[ "summ" ][ "log_file" ]
 		                        )
 
-		p = conf[ "ana" ][ "loc_p" ]
+		loc_mask_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "exp_loc_mask" ], hemi )
 
-		q_briks = [ 2, 4, 6, 8 ]
+		# localiser is a one-tailed test, so multiply the q by two
+		q = conf[ "ana" ][ "loc_q" ] * 2
 
-		fdr_data_files = [ "%s[%d]" % ( fdr_file, q_brik )
-		                   for q_brik in q_briks
-		                 ]
-
-		t_briks = [ 2, 4, 6, 8 ]
-
-		glm_data_files = [ "%s[%d]" % ( glm_file, t_brik )
-		                   for t_brik in t_briks
-		                 ]
-
-		loc_mask_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "exp_loc_mask" ],
-		                                      hemi
-		                                    )
-
-		expr = ( "or( " +
-		         "and( within( a, 0, %.6f ), posval( e ) )," % p +
-		         "and( within( b, 0, %.6f ), posval( f ) )," % p +
-		         "and( within( c, 0, %.6f ), posval( g ) )," % p +
-		         "and( within( d, 0, %.6f ), posval( h ) )" % p +
-		         ")"
-		       )
-
-
-		# then, need to apply conjunction test
-		conj_cmd = [ "3dcalc",
-		             "-a", fdr_data_files[ 0 ],
-		             "-b", fdr_data_files[ 1 ],
-		             "-c", fdr_data_files[ 2 ],
-		             "-d", fdr_data_files[ 3 ],
-		             "-e", glm_data_files[ 0 ],
-		             "-f", glm_data_files[ 1 ],
-		             "-g", glm_data_files[ 2 ],
-		             "-h", glm_data_files[ 3 ],
-		             "-expr", expr,
+		mask_cmd = [ "3dcalc",
+		             "-a", "%s[%s]" % ( glm_file, loc_stat_brik ),
+		             "-b", loc_fdr_file,
+		             "-expr", "ispositive( a ) * within( b, 0, %.6f )" % q,
 		             "-prefix", loc_mask_file,
 		             "-overwrite"
-		            ]
+		           ]
 
-		fmri_tools.utils.run_cmd( conj_cmd,
+		fmri_tools.utils.run_cmd( mask_cmd,
 		                          env = fmri_tools.utils.get_env(),
 		                          log_path = paths[ "summ" ][ "log_file" ]
 		                        )
 
-		# convert to full
-		full_mask_file = "%s_%s-full" % ( paths[ "ana" ][ "exp_loc_mask" ], hemi )
-
-		pad_node = "%d" % conf[ "subj" ][ "node_k" ][ hemi ]
-
-		fmri_tools.utils.sparse_to_full( loc_mask_file,
-		                                 full_mask_file,
-		                                 pad_node = pad_node,
-		                                 log_path = paths[ "summ" ][ "log_file" ],
-		                                 overwrite = True
-		                               )
-
 	os.chdir( start_dir )
+
+
+def trends( paths, conf ):
+	"""a"""
+
+	start_dir = os.getcwd()
+
+	os.chdir( paths[ "ana" ][ "exp_dir" ] )
+
+	loc_stat_brik = "16"
+
+	trend_stat_briks = "10,12,14"
+
+	for hemi in [ "lh", "rh" ]:
+
+		glm_file = "%s_%s_reml.niml.dset" % ( paths[ "ana" ][ "exp_glm" ], hemi )
+
+		loc_mask_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "exp_loc_mask" ], hemi )
+
+		trend_fdr_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "exp_trend_fdr" ], hemi )
+
+		fdr_cmd = [ "3dFDR",
+		            "-input", "%s[%s]" % ( glm_file, trend_stat_briks ),
+		            "-prefix", trend_fdr_file,
+		            "-mask", loc_mask_file,
+		            "-float",
+		            "-overwrite"
+		          ]
+
+		fmri_tools.utils.run_cmd( fdr_cmd,
+		                          env = fmri_tools.utils.get_env(),
+		                          log_path = paths[ "summ" ][ "log_file" ]
+		                        )
+
+		 
+
 
 
 def beta_to_psc( paths, conf ):
