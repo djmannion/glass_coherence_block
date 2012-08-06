@@ -56,7 +56,7 @@ def _get_ana_conf( conf ):
 
 	poly_ord = "3"
 
-	loc_q = 0.01
+	loc_q = 0.001
 
 	ana_conf = { "rois" : rois,
 	             "poly_ord" : poly_ord,

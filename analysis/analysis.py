@@ -31,22 +31,22 @@ def exp_glm( paths, conf ):
 
 	stim_labels = [ "%.2f" % coh for coh in conf[ "stim" ][ "coh_levels" ] ]
 
-	con_coef = [ [ -3, -1, +1, +3 ],  # linear
-	             [ +1, -1, -1, +1 ],  # quadratic
-	             [ -1, +3, -3, +1 ],  # cubic
-	             [ +1, +1, +1, +1 ]   # mean
-	           ]
+	trend_coef = [ [ -3, -1, +1, +3 ],  # linear
+	               [ +1, -1, -1, +1 ],  # quadratic
+	               [ -1, +3, -3, +1 ]   # cubic
+	             ]
 
-	con_labels = [ "lin", "quad", "cub", "mean" ]
+	trend_lbl = [ "lin", "quad", "cub" ]
 
-	con = [ "SYM: %d*%s %d*%s %d*%s %d*%s" % (
-	          coef[ 0 ], stim_labels[ 0 ],
-	          coef[ 1 ], stim_labels[ 1 ],
-	          coef[ 2 ], stim_labels[ 2 ],
-	          coef[ 3 ], stim_labels[ 3 ]
-	        )
-	        for coef in con_coef
-	      ]
+	trend_con = [ "SYM: " +
+	              " ".join( [ "%d*%s" % con
+	                          for con in zip( t_coef, stim_labels )
+	                        ]
+	                      )
+	              for t_coef in trend_coef
+	            ]
+
+	f_con = "SYM: +1*%s | +1*%s | +1*%s | +1*%s " % tuple( stim_labels )
 
 	for hemi in [ "lh", "rh" ]:
 
@@ -73,6 +73,7 @@ def exp_glm( paths, conf ):
 		                  "-cbucket", "%s.niml.dset" % beta_file,
 		                  "-jobs", "16",
 		                  "-tout",
+		                  "-fout",
 		                  "-overwrite",
 		                  "-x1D_stop",
 		                  "-num_stimts", "%d" % n_cond
@@ -94,18 +95,30 @@ def exp_glm( paths, conf ):
 			                ]
 			              )
 
-		for i_con in xrange( len( con ) ):
+		for i_con in xrange( len( trend_con ) ):
 
 			glm_cmd.extend( [ "-gltsym",
-			                  con[ i_con ]
+			                  trend_con[ i_con ]
 			                ]
 			              )
 
 			glm_cmd.extend( [ "-glt_label",
 			                  "%d" % ( i_con + 1 ),
-			                  con_labels[ i_con ]
+			                  trend_lbl[ i_con ]
 			                ]
 			              )
+
+		# f contrast
+		glm_cmd.extend( [ "-gltsym",
+		                  f_con
+		                ]
+		              )
+
+		glm_cmd.extend( [ "-glt_label",
+		                  "%d" % ( len( trend_con ) + 1 ),
+		                  "fAll"
+		                ]
+		              )
 
 		fmri_tools.utils.run_cmd( glm_cmd,
 		                          env = fmri_tools.utils.get_env(),
@@ -119,6 +132,7 @@ def exp_glm( paths, conf ):
 		             "-matrix", "exp_design.xmat.1D",
 		             "-Rbeta", "%s_reml.niml.dset" % beta_file,
 		             "-tout",
+		             "-fout",
 		             "-Rbuck", "%s_reml.niml.dset" % glm_file,
 		             "-overwrite",
 		             "-input"
@@ -145,7 +159,9 @@ def loc_mask( paths, conf ):
 
 	os.chdir( paths[ "ana" ][ "exp_dir" ] )
 
-	loc_stat_brik = "16"
+	loc_F_brik = "30"
+
+	loc_t_briks = [ "23", "25", "27", "29" ]
 
 	for hemi in [ "lh", "rh" ]:
 
@@ -153,9 +169,9 @@ def loc_mask( paths, conf ):
 
 		loc_fdr_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "exp_loc_fdr" ], hemi )
 
-		# convert the statistics for the localiser (mean contrast) to a q (FDR) value
+		# convert the statistics for the localiser to a q (FDR) value
 		fdr_cmd = [ "3dFDR",
-		            "-input", "%s[%s]" % ( glm_file, loc_stat_brik ),
+		            "-input", "%s[%s]" % ( glm_file, loc_F_brik ),
 		            "-prefix", loc_fdr_file,
 		            "-qval",
 		            "-float",
@@ -169,13 +185,20 @@ def loc_mask( paths, conf ):
 
 		loc_mask_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "exp_loc_mask" ], hemi )
 
-		# localiser is a one-tailed test, so multiply the q by two
-		q = conf[ "ana" ][ "loc_q" ] * 2
+		q = conf[ "ana" ][ "loc_q" ]
+
+		# has to have a significant F statistic AND have at least one of it's
+		# constituent t-values be positive
+		expr = """within( a, 0, %.6f ) * or( ispositive( b ), ispositive( c ),
+ispositive( d ), ispositive( e ) )""" % q
 
 		mask_cmd = [ "3dcalc",
-		             "-a", "%s[%s]" % ( glm_file, loc_stat_brik ),
-		             "-b", loc_fdr_file,
-		             "-expr", "ispositive( a ) * within( b, 0, %.6f )" % q,
+		             "-a", loc_fdr_file,
+		             "-b", "%s[%s]" % ( glm_file, loc_t_briks[ 0 ] ),
+		             "-c", "%s[%s]" % ( glm_file, loc_t_briks[ 1 ] ),
+		             "-d", "%s[%s]" % ( glm_file, loc_t_briks[ 2 ] ),
+		             "-e", "%s[%s]" % ( glm_file, loc_t_briks[ 3 ] ),
+		             "-expr", expr,
 		             "-prefix", loc_mask_file,
 		             "-overwrite"
 		           ]
