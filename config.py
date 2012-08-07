@@ -45,18 +45,18 @@ def _get_ana_conf( conf ):
 	         [ "v2", "2" ],
 	         [ "v3", "3" ],
 	         [ "hv4", "4" ],
+	         [ "vo1", "10" ],
 	         [ "v3ab", "5" ],
 	         [ "lo1", "6" ],
 	         [ "lo2", "7" ],
-#	         [ "loc", "8" ],
-#	         [ "hmtp", "9" ]
+	         [ "hmtp", "9" ]
 	      ]
 
 	hrf_model = "SPMG1(%d)" % conf[ "exp" ][ "block_len_s" ]
 
 	poly_ord = "3"
 
-	loc_q = 0.001
+	loc_q = 0.01
 
 	ana_conf = { "rois" : rois,
 	             "poly_ord" : poly_ord,
@@ -238,7 +238,6 @@ def _get_subj_conf( subj_id = None ):
 
 
 	subj_conf = { "s1021" : s1021,
-	              "s1011" : s1011,
 	              "s1000" : s1000,
 	              "s1008" : s1008,
 	              "s1010" : s1010,

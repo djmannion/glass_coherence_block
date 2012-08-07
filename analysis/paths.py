@@ -263,6 +263,37 @@ def _get_ana_paths( conf, paths ):
 	return paths
 
 
+def _get_roi_paths( conf, paths ):
+	"""Get the paths for the ROI data"""
+
+	subj_id = conf[ "subj" ][ "subj_id" ]
+
+	rois = {}
+
+	roi_dir = os.path.join( paths[ "study" ][ "subj_dir" ],
+	                        subj_id,
+	                        "rois"
+	                      )
+
+	rois[ "dir" ] = os.path.join( roi_dir )
+
+	rois[ "roi_dset" ] = os.path.join( roi_dir,
+	                                   "%s_%s-rois" % ( subj_id,
+	                                                    conf[ "exp" ][ "id" ]
+	                                                  )
+	                                 )
+
+	rois[ "psc" ] = os.path.join( roi_dir,
+	                              "%s_%s-psc" % ( subj_id,
+	                                              conf[ "exp" ][ "id" ]
+	                                            )
+	                            )
+
+	paths[ "rois" ] = rois
+
+	return paths
+
+
 def get_subj_paths( conf ):
 	"""Get the path structure for a given subject"""
 
@@ -281,5 +312,25 @@ def get_subj_paths( conf ):
 	paths = _get_log_paths( conf, paths )
 
 	paths = _get_ana_paths( conf, paths )
+
+	paths = _get_roi_paths( conf, paths )
+
+	return paths
+
+
+def get_group_paths( conf ):
+	"""Get the path structure for the group analysis"""
+
+	paths = {}
+
+	paths[ "study" ] = _get_study_paths()
+
+	paths[ "base_dir" ] = os.path.join( paths[ "study" ][ "base_dir" ],
+	                                    "group_data"
+	                                  )
+
+	paths[ "roi_mean" ] = os.path.join( paths[ "base_dir" ],
+	                                    "glass_coherence_block_group"
+	                                  )
 
 	return paths
