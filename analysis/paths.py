@@ -182,9 +182,9 @@ def _get_ana_paths( conf, paths ):
 	                                 "%s_%s-mot_est.txt" % ( subj_id, exp_id )
 	                               )
 
-	ana[ "fits" ] = os.path.join( ana[ "base_dir" ],
-	                              "%s_%s-fits" % ( subj_id, exp_id )
-	                            )
+	ana[ "pred_adj" ] = os.path.join( ana[ "base_dir" ],
+	                                  "%s_%s-pred_adj" % ( subj_id, exp_id )
+	                                )
 
 	ana[ "glm" ] = os.path.join( ana[ "base_dir" ],
 	                             "%s_%s-glm" % ( subj_id, exp_id )
@@ -247,6 +247,14 @@ def _get_roi_paths( conf, paths ):
 	rois[ "psc" ] = os.path.join( rois[ "base_dir" ],
 	                              "%s_%s-psc" % ( subj_id, exp_id )
 	                            )
+
+	rois[ "raw_adj_tc" ] = os.path.join( rois[ "base_dir" ],
+	                                     "%s_%s-raw_adj_tc" % ( subj_id, exp_id )
+	                                   )
+
+	rois[ "pred_adj_tc" ] = os.path.join( rois[ "base_dir" ],
+	                                      "%s_%s-pred_adj_tc" % ( subj_id, exp_id )
+	                                    )
 
 	paths[ "rois" ] = rois
 

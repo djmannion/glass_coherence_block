@@ -188,7 +188,10 @@ def _get_subj_conf( subj_id = None ):
 	          "comments" : "",
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
-	          "run_st_mot_order" : ( 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6 )
+	          "run_st_mot_order" : ( 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6 ),
+	          "node_k" : { "lh" : 128434,
+	                       "rh" : 128461
+	                     }
 	        }
 
 	s1000 = { "subj_id" : "s1000",
@@ -241,7 +244,8 @@ def _get_subj_conf( subj_id = None ):
 	              "s1000" : s1000,
 	              "s1008" : s1008,
 	              "s1010" : s1010,
-	              "s1032" : s1032
+	              "s1032" : s1032,
+#	              "s1011" : s1011
 	            }
 
 	if subj_id is None:

@@ -69,7 +69,8 @@ def main():
 	                  "loc_mask",
 	                  "beta_to_psc",
 	                  "roi_xtr",
-	                  "raw_adj"
+	                  "raw_adj",
+	                  "roi_tc"
 	                )
 
 	parser.add_argument( "preproc_step",
@@ -134,6 +135,9 @@ def main():
 
 	elif args.preproc_step == "raw_adj":
 		glass_coherence_block.analysis.analysis.raw_adj( paths, conf )
+
+	elif args.preproc_step == "roi_tc":
+		glass_coherence_block.analysis.analysis.roi_tc( paths, conf )
 
 	else:
 		print "Not completed"
