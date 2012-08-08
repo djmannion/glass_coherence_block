@@ -294,6 +294,10 @@ def design_prep( paths, conf ):
 	# motion estimates as baseline
 	mot_est = np.load( paths[ "summ" ][ "mot_est_file" ] )
 
+	# change the degrees to radians, so as to not have tiny numbers going into
+	# the GLM
+	mot_est[ 1, :, :, : ] = np.degrees( mot_est[ 1, :, :, : ] )
+
 	# mot est is ( type, run, vol, axis )
 	pre_len_vol = int( conf[ "exp" ][ "pre_len_s" ] / conf[ "acq" ][ "tr_s" ] )
 	mot_est = mot_est[ :, :, pre_len_vol:, : ]
