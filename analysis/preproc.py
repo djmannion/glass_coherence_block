@@ -6,7 +6,6 @@ fMRI experiment.
 from __future__ import division
 
 import os.path
-import tempfile
 
 import numpy as np
 
@@ -240,7 +239,7 @@ def design_prep( paths, conf ):
 	n_cond = len( conf[ "stim" ][ "coh_levels" ] )
 
 	# exp
-	run_files = [ open( "%s%d.txt" % ( paths[ "ana" ][ "exp_time_files" ],
+	run_files = [ open( "%s%d.txt" % ( paths[ "ana" ][ "time_files" ],
 	                                   cond_num
 	                                 ),
 	                    "w"
@@ -290,3 +289,39 @@ def design_prep( paths, conf ):
 		_ = [ run_file.write( "\n" ) for run_file in run_files ]
 
 	_ = [ run_file.close() for run_file in run_files ]
+
+
+	# motion estimates as baseline
+	mot_est = np.load( paths[ "summ" ][ "mot_est_file" ] )
+
+	# mot est is ( type, run, vol, axis )
+	pre_len_vol = int( conf[ "exp" ][ "pre_len_s" ] / conf[ "acq" ][ "tr_s" ] )
+	mot_est = mot_est[ :, :, pre_len_vol:, : ]
+
+	n_vol_per_run = ( conf[ "exp" ][ "run_len_s" ] /
+	                  conf[ "acq" ][ "tr_s" ]
+	                )
+
+	n_exp_vol = n_vol_per_run * conf[ "subj" ][ "n_runs" ]
+
+	mot_mat = np.empty( ( n_exp_vol, 6 ) )
+	mot_mat.fill( np.NAN )
+
+	for ( i_run, run_num ) in enumerate( conf[ "subj" ][ "run_st_mot_order" ] ):
+
+		i_ax = 0
+
+		i_vol_range = np.arange( i_run * n_vol_per_run,
+		                         i_run * n_vol_per_run + n_vol_per_run
+		                       ).astype( "int" )
+
+		for i_type in xrange( 2 ):
+			for i_axis in xrange( 3 ):
+
+				mot_mat[ i_vol_range, i_ax ] = mot_est[ i_type, run_num - 1, :, i_axis ]
+
+				i_ax += 1
+
+	assert( np.all( np.logical_not( np.isnan( mot_mat ) ) ) )
+
+	np.savetxt( paths[ "ana" ][ "mot_est" ], mot_mat )

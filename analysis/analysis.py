@@ -13,20 +13,20 @@ import fmri_tools.utils
 
 import glass_coherence_block.config
 import glass_coherence_block.analysis.paths
-import glass_coherence_block.analysis.analysis
+
 
 def exp_glm( paths, conf ):
 	"""Experiment GLM"""
 
 	start_dir = os.getcwd()
 
-	os.chdir( paths[ "ana" ][ "exp_dir" ] )
+	os.chdir( paths[ "ana" ][ "base_dir" ] )
 
 	n_cond = len( conf[ "stim" ][ "coh_levels" ] )
 
 	hrf_model = conf[ "ana" ][ "hrf_model" ]
 
-	stim_files = [ "%s%d.txt" % ( paths[ "ana" ][ "exp_time_files" ],
+	stim_files = [ "%s%d.txt" % ( paths[ "ana" ][ "time_files" ],
 	                              cond_num
 	                            )
 	               for cond_num in np.arange( 1, n_cond + 1 )
@@ -52,9 +52,6 @@ def exp_glm( paths, conf ):
 
 	for hemi in [ "lh", "rh" ]:
 
-		fit_file = "%s_%s" % ( paths[ "ana" ][ "exp_fits" ], hemi )
-		glm_file = "%s_%s" % ( paths[ "ana" ][ "exp_glm" ], hemi )
-		beta_file = "%s_%s" % ( paths[ "ana" ][ "exp_beta" ], hemi )
 
 		glm_cmd = [ "3dDeconvolve",
 		            "-input"
@@ -67,14 +64,10 @@ def exp_glm( paths, conf ):
 
 		glm_cmd.extend( [ "-force_TR", "%.3f" % conf[ "acq" ][ "tr_s" ],
 		                  "-polort", conf[ "ana" ][ "poly_ord" ],
+		                  "-ortvec", paths[ "ana" ][ "mot_est" ], "mot",
 		                  "-local_times",
 		                  "-xjpeg", "exp_design.png",
 		                  "-x1D", "exp_design",
-		                  "-fitts", "%s.niml.dset" % fit_file,
-		                  "-bucket", "%s.niml.dset" % glm_file,
-		                  "-cbucket", "%s.niml.dset" % beta_file,
-		                  "-jobs", "16",
-		                  "-tout",
 		                  "-overwrite",
 		                  "-x1D_stop",
 		                  "-num_stimts", "%d" % n_cond
@@ -115,13 +108,18 @@ def exp_glm( paths, conf ):
 		                        )
 
 		# delete the annoying command file that 3dDeconvolve writes
-		os.remove( "%s.REML_cmd" % glm_file )
+		os.remove( "Decon.REML_cmd" )
+
+		glm_file = "%s_%s" % ( paths[ "ana" ][ "glm" ], hemi )
+		beta_file = "%s_%s" % ( paths[ "ana" ][ "beta" ], hemi )
+		fits_file = "%s_%s" % ( paths[ "ana" ][ "fits" ], hemi )
 
 		reml_cmd = [ "3dREMLfit",
 		             "-matrix", "exp_design.xmat.1D",
 		             "-Rbeta", "%s_reml.niml.dset" % beta_file,
 		             "-tout",
 		             "-Rbuck", "%s_reml.niml.dset" % glm_file,
+		             "-Rfitts", "%s_reml.niml.dset" % fits_file,
 		             "-overwrite",
 		             "-input"
 		           ]
@@ -141,23 +139,28 @@ def exp_glm( paths, conf ):
 
 
 def loc_mask( paths, conf ):
-	"""a"""
+	"""Creates a mask from the localiser contrast"""
 
 	start_dir = os.getcwd()
 
-	os.chdir( paths[ "ana" ][ "exp_dir" ] )
+	os.chdir( paths[ "ana" ][ "base_dir" ] )
 
+	# brik in the glm file that contains the localiser statistic
 	loc_stat_brik = "16"
 
 	for hemi in [ "lh", "rh" ]:
 
-		glm_file = "%s_%s_reml.niml.dset" % ( paths[ "ana" ][ "exp_glm" ], hemi )
+		glm_file = "%s_%s_reml.niml.dset" % ( paths[ "ana" ][ "glm" ], hemi )
+		glm_file += "[%s]" % loc_stat_brik
 
-		loc_fdr_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "exp_loc_fdr" ], hemi )
+		# check the localiser brik is as expected
+		assert( fmri_tools.utils.get_dset_label( glm_file ) == [ "mean#0_Tstat" ] )
+
+		loc_fdr_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "loc_fdr" ], hemi )
 
 		# convert the statistics for the localiser to a q (FDR) value
 		fdr_cmd = [ "3dFDR",
-		            "-input", "%s[%s]" % ( glm_file, loc_stat_brik ),
+		            "-input", glm_file,
 		            "-prefix", loc_fdr_file,
 		            "-qval",
 		            "-float",
@@ -169,14 +172,14 @@ def loc_mask( paths, conf ):
 		                          log_path = paths[ "summ" ][ "log_file" ]
 		                        )
 
-		loc_mask_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "exp_loc_mask" ], hemi )
+		loc_mask_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "loc_mask" ], hemi )
 
-		q = conf[ "ana" ][ "loc_q" ]
+		q_thresh = conf[ "ana" ][ "loc_q" ]
 
 		mask_cmd = [ "3dcalc",
 		             "-a", loc_fdr_file,
-		             "-b", "%s[%s]" % ( glm_file, loc_stat_brik ),
-		             "-expr", "within( a, 0, %.6f ) * ispositive( b )" % q,
+		             "-b", glm_file,
+		             "-expr", "within( a, 0, %.6f ) * ispositive( b )" % q_thresh,
 		             "-prefix", loc_mask_file,
 		             "-overwrite"
 		           ]
@@ -187,7 +190,7 @@ def loc_mask( paths, conf ):
 		                        )
 
 		# convert to full
-		full_mask_file = "%s_%s-full" % ( paths[ "ana" ][ "exp_loc_mask" ], hemi )
+		full_mask_file = "%s_%s-full" % ( paths[ "ana" ][ "loc_mask" ], hemi )
 
 		pad_node = "%d" % conf[ "subj" ][ "node_k" ][ hemi ]
 
@@ -209,20 +212,20 @@ def beta_to_psc( paths, conf ):
 
 	start_dir = os.getcwd()
 
-	os.chdir( paths[ "ana" ][ "exp_dir" ] )
+	os.chdir( paths[ "ana" ][ "base_dir" ] )
 
 	for hemi in [ "lh", "rh" ]:
 
 		# dataset holding the beta weights
-		beta_file = "%s_%s_reml.niml.dset" % ( paths[ "ana" ][ "exp_beta" ], hemi )
+		beta_file = "%s_%s_reml.niml.dset" % ( paths[ "ana" ][ "beta" ], hemi )
 
 		# design matrix file
-		mat_file = os.path.join( paths[ "ana" ][ "exp_dir" ],
+		mat_file = os.path.join( paths[ "ana" ][ "base_dir" ],
 		                         "exp_design.xmat.1D"
 		                       )
 
 		# baseline timecourse dataset, to write
-		bltc_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "exp_bltc" ], hemi )
+		bltc_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "bltc" ], hemi )
 
 		# generate an average baseline timecourse
 		bl_cmd = [ "3dSynthesize",
@@ -239,7 +242,7 @@ def beta_to_psc( paths, conf ):
 		                        )
 
 		# baseline (point-estimate) dataset, to write
-		bl_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "exp_bl" ], hemi )
+		bl_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "bl" ], hemi )
 
 		# average baseline timecourse across time
 		avg_cmd = [ "3dTstat",
@@ -255,14 +258,13 @@ def beta_to_psc( paths, conf ):
 		                        )
 
 		# dataset to hold the percent signal change, to write
-		psc_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "exp_psc" ], hemi )
+		psc_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "psc" ], hemi )
 
 		# the input beta file, with sub-brick selector
 		beta_sel = "%s[%s]" % ( beta_file, beta_briks )
 
 		# check that the label is as expected
 		beta_label = fmri_tools.utils.get_dset_label( beta_sel )
-
 		assert( beta_label == [ "0.00#0", "0.33#0", "0.66#0", "1.00#0" ] )
 
 		# compute psc
@@ -282,7 +284,7 @@ def beta_to_psc( paths, conf ):
 		                        )
 
 		# convert to full
-		full_psc_file = "%s_%s-full" % ( paths[ "ana" ][ "exp_psc" ], hemi )
+		full_psc_file = "%s_%s-full" % ( paths[ "ana" ][ "psc" ], hemi )
 
 		pad_node = "%d" % conf[ "subj" ][ "node_k" ][ hemi ]
 
@@ -293,20 +295,24 @@ def beta_to_psc( paths, conf ):
 		                                 overwrite = True
 		                               )
 
+	os.chdir( start_dir )
+
 
 def roi_xtr( paths, conf ):
 	"""Extract PSC and statistics data from ROIs"""
 
 	for hemi in [ "lh", "rh" ]:
 
-		loc_mask_file = "%s_%s-full.niml.dset" % ( paths[ "ana" ][ "exp_loc_mask" ],
+		# the *full* localiser mask file
+		loc_mask_file = "%s_%s-full.niml.dset" % ( paths[ "ana" ][ "loc_mask" ],
 		                                           hemi
 		                                         )
 
-		cmask = "-a %s -expr step(a)" % loc_mask_file
+		# expression to apply the localiser mask
+		cmask_expr = "-a %s -expr step(a)" % loc_mask_file
 
 		# the *full* ROI file
-		roi_file = "%s_%s-full.niml.dset" % ( paths[ "rois" ][ "roi_dset" ], hemi )
+		roi_file = "%s_%s-full.niml.dset" % ( paths[ "rois" ][ "dset" ], hemi )
 
 		# iterate over all the ROIs
 		for ( roi_name, roi_val ) in conf[ "ana" ][ "rois" ]:
@@ -316,18 +322,19 @@ def roi_xtr( paths, conf ):
 			                                  hemi
 			                                )
 
+			# 3dmaskdump won't overwrite, so need to manually remove any prior data
 			if os.path.exists( roi_psc_file ):
 				os.remove( roi_psc_file )
 
 			# our input dataset
-			data_file = "%s_%s-full.niml.dset" % ( paths[ "ana" ][ "exp_psc" ],
+			data_file = "%s_%s-full.niml.dset" % ( paths[ "ana" ][ "psc" ],
 			                                       hemi
 			                                     )
 
 			# use the ROI file to mask the input dataset
 			xtr_cmd = [ "3dmaskdump",
 			            "-mask", roi_file,
-			            "-cmask", cmask,
+			            "-cmask", cmask_expr,
 			            "-mrange", roi_val, roi_val,
 			            "-noijk",
 			            "-o", roi_psc_file,
@@ -338,6 +345,51 @@ def roi_xtr( paths, conf ):
 			                          env = fmri_tools.utils.get_env(),
 			                          log_path = paths[ "summ" ][ "log_file" ]
 			                        )
+
+
+def raw_adj( paths, conf ):
+	"""Concatenates raw timecourses and adjusts them for baselines"""
+
+	start_dir = os.getcwd()
+
+	os.chdir( paths[ "ana" ][ "base_dir" ] )
+
+	for hemi in [ "lh", "rh" ]:
+
+		surf_files = [ "%s_%s.niml.dset" % ( surf_file, hemi )
+		               for surf_file in paths[ "func" ][ "surf_files" ]
+		             ]
+
+		raw_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "raw" ], hemi )
+
+		cat_cmd = [ "3dTcat",
+		            "-prefix", raw_file
+		          ]
+
+		cat_cmd.extend( surf_files )
+
+		fmri_tools.utils.run_cmd( cat_cmd,
+		                          env = fmri_tools.utils.get_env(),
+		                          log_path = paths[ "summ" ][ "log_file" ]
+		                        )
+
+		raw_adj_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "raw_adj" ], hemi )
+
+		bltc_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "bltc" ], hemi )
+
+		adj_cmd = [ "3dcalc",
+		            "-fscale",
+		            "-a", bltc_file,
+		            "-b", raw_file,
+		            "-expr", "b-a",
+		            "-prefix", raw_adj_file,
+		            "-overwrite"
+		          ]
+
+		fmri_tools.utils.run_cmd( adj_cmd,
+		                          env = fmri_tools.utils.get_env(),
+		                          log_path = paths[ "summ" ][ "log_file" ]
+		                        )
 
 
 def group_rois( paths, conf ):
@@ -354,7 +406,6 @@ def group_rois( paths, conf ):
 		for subj_id in conf[ "all_subj" ]:
 
 			subj_conf = glass_coherence_block.config.get_conf( subj_id )
-
 			subj_paths = glass_coherence_block.analysis.paths.get_subj_paths( subj_conf )
 
 			roi_data = []
