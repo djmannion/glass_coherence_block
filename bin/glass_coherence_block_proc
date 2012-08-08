@@ -9,6 +9,7 @@ import argparse
 import glass_coherence_block.config, glass_coherence_block.analysis.paths
 import glass_coherence_block.analysis.preproc
 import glass_coherence_block.analysis.analysis
+import glass_coherence_block.analysis.figures
 
 def main():
 	"""Execution function"""
@@ -70,7 +71,8 @@ def main():
 	                  "beta_to_psc",
 	                  "roi_xtr",
 	                  "raw_adj",
-	                  "roi_tc"
+	                  "roi_tc",
+	                  "plot_tc"
 	                )
 
 	parser.add_argument( "preproc_step",
@@ -138,6 +140,9 @@ def main():
 
 	elif args.preproc_step == "roi_tc":
 		glass_coherence_block.analysis.analysis.roi_tc( paths, conf )
+
+	elif args.preproc_step == "plot_tc":
+		glass_coherence_block.analysis.figures.plot_subj_tc( paths, conf )
 
 	else:
 		print "Not completed"

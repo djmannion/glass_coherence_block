@@ -48,6 +48,62 @@ def _cleanup_fig( ax ):
 	ax.yaxis.set_ticks_position( "left" )
 
 
+def plot_subj_tc( paths, conf ):
+	"""a"""
+
+	_set_defaults()
+
+	n_vols_per_run = ( conf[ "exp" ][ "run_len_s" ] /
+	                   conf[ "acq" ][ "tr_s" ]
+	                 )
+
+	for ( roi_name, _ ) in conf[ "ana" ][ "rois" ]:
+
+		fig = plt.figure()
+
+		fig.set_size_inches( 9, 5, forward = True )
+
+		# assuming 12 runs
+		gs = gridspec.GridSpec( 4, 3 )
+
+		raw_data = [ np.loadtxt( "%s_%s_%s.txt" % ( paths[ "rois" ][ "raw_adj_tc" ],
+		                                            roi_name,
+		                                            hemi
+		                                          )
+		                       )
+		             for hemi in [ "lh", "rh" ]
+		           ]
+
+		pred_data = [ np.loadtxt( "%s_%s_%s.txt" % ( paths[ "rois" ][ "pred_adj_tc" ],
+		                                             roi_name,
+		                                             hemi
+		                                           )
+		                        )
+		             for hemi in [ "lh", "rh" ]
+		           ]
+
+		raw_data = np.vstack( raw_data )
+		pred_data = np.vstack( pred_data )
+
+		raw_data = np.mean( raw_data, axis = 0 )
+		pred_data = np.mean( pred_data, axis = 0 )
+
+		for i_run in xrange( conf[ "subj" ][ "n_runs" ] ):
+
+			vol_range = np.arange( i_run * n_vols_per_run,
+			                       i_run * n_vols_per_run + n_vols_per_run
+			                     ).astype( "int" )
+
+			ax = plt.subplot( gs[ i_run ] )
+
+			ax.hold( True )
+
+			ax.plot( raw_data[ vol_range ] )
+			ax.plot( pred_data[ vol_range ] )
+
+
+	plt.show()
+
 def plot_roi_psc( paths, conf ):
 	"""a"""
 

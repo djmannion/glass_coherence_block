@@ -447,7 +447,7 @@ def raw_adj( paths, conf ):
 
 
 def roi_tc( paths, conf ):
-	"""a"""
+	"""Compile raw and predicted (adjusted) timecourses for each ROI."""
 
 	for hemi in [ "lh", "rh" ]:
 
@@ -511,7 +511,7 @@ def roi_tc( paths, conf ):
 
 
 def group_rois( paths, conf ):
-	"""a"""
+	"""Group together the ROIs for each subject"""
 
 	roi_names = [ roi_info[ 0 ] for roi_info in conf[ "ana" ][ "rois" ] ]
 
