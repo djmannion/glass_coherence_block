@@ -9,8 +9,11 @@ Requirements
 - numpy
 - matplotlib
 - scipy
+- scikits.bootstrap
 - fmri_tools (`http://www.bitbucket.org/djmannion/fmri_tools <http://www.bitbucket.org/djmannion/fmri_tools/>`_)
 - FSL >= 4.1.9
+- AFNI/SUMA
+- SPM
 
 Processing stages
 =================
@@ -20,9 +23,9 @@ Prepare the filesystem
 
 1. Make the subject's directory structure::
 
-    mkdir -p sXXXX/{anat,analysis,fmap/f1,func/run{01,02,03,04,05,06,07,08,09,10,11,12},log,roi}
+    mkdir -p sXXXX/{analysis,fmap/f01,func/run{01,02,03,04,05,06,07,08,09,10,11,12},logs,reg,rois}
 
-2. Copy the subject's runtime logfiles to the ``log`` directory.
+2. Copy the subject's runtime logfiles to the ``logs`` directory.
 
 3. Make symlinks named ``raw`` in each functional run directory that link to the location of its associated raw DICOM directory::
 
@@ -33,46 +36,26 @@ Prepare the filesystem
     ln -s /labs/olmanlab/DICOM/YYYYMMDD/sXXXX/MR-SEyada mag-raw
     ln -s /labs/olmanlab/DICOM/YYYYMMDD/sXXXX/PH-SEyada ph-raw
 
-5. Copy (not symlink) the subject's main high-res anatomical (skull stripped) from the main repository to the ``anat`` directorym using FSL::
-
-    fslmaths /labs/olmanlab/Anatomy/sXXXX/sXXXX_stripped sXXXX_anat
-
-  N.B. We want to use single NIFTI files, so before running the above you may need to run::
-
-      setenv FSLOUTPUTTYPE NIFTI
-
-6. Copy the relevant ROI MAT files from the visual localisers repository (the Gray view) to the ``roi`` directory.
-
 
 Update the experiment information file
 --------------------------------------
 
 Edit ``get_subj_conf`` within ``glass_coherence_block/config.py`` and add the new subject's information.
 
-For example::
-
-    s1000 = { "subj_id" : "s1021",
-              "acq_date" : "20120522",
-              "n_runs" : 12,
-              "n_fmaps" : 1,
-              "run_st_mot_order" : ( 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6 ),
-              "comments" : ""
-            }
-
 
 Pre-processing
 --------------
 
-Most of the pre-processing is done with the command ``glass_coherence_block_preproc``.
+Most of the pre-processing is done with the command ``glass_coherence_block_proc``.
 For help on using this script, run::
 
-    glass_coherence_block_preproc --help
+    glass_coherence_block_proc --help
 
 Typical usage is::
 
-    glass_coherence_block_preproc sXXXX stage
+    glass_coherence_block_proc sXXXX stage
 
-where ``sXXXX`` is the subject ID and ``stage`` is the preprocessing stage (see below).
+where ``sXXXX`` is the subject ID and ``stage`` is the processing stage (see below).
 
 The stages are as follows:
 
@@ -81,7 +64,7 @@ Conversion
 
 Converts from the raw scanner format to a set of 4D NIFTI files::
 
-    glass_coherence_block_preproc sXXXX convert
+    glass_coherence_block_proc sXXXX convert
 
 After execution, open up each NIFTI file and inspect for image quality and inspect the summary image to see how much motion there was and as a comparison for the next step.
 
@@ -91,7 +74,7 @@ Correction
 
 Applies a motion correction procedure and creates session mean and summary images::
 
-    glass_coherene_block_preproc sXXXX correct
+    glass_coherene_block_proc sXXXX correct
 
 *N.B. This stage takes quite a while...*
 
@@ -99,15 +82,15 @@ After execution, open up the session summary image that it creates and view in m
 
 
 Fieldmaps
-~~~~~~~~
+~~~~~~~~~
 
 Prepares the fieldmaps::
 
-    glass_coherence_block_preproc SXXXX fieldmaps
+    glass_coherence_block_proc sXXXX fieldmap
 
 
 Unwarping
-~~~~~~~~
+~~~~~~~~~
 
 Before running, need to have made a symbolic link in each functional run directory to that run's fieldmap. For example::
 
@@ -115,7 +98,7 @@ Before running, need to have made a symbolic link in each functional run directo
 
 Then, to use the fieldmaps to unwarp the functional images to remove the spatial distortion::
 
-    glass_coherence_block_preproc sXXXX undistort
+    glass_coherence_block_proc sXXXX undistort
 
 To verify that the unwarping has worked correctly:
 
@@ -129,162 +112,99 @@ To verify that the unwarping has worked correctly:
 Also, look at the session summary image produced and make sure that all looks good across the session.
 
 
-ROI to images
-~~~~~~~~~~~~~
+Trim
+~~~~
 
-Converts the raw ROI files from mrLoadRet into NIFTI masks::
+This trims the voxel timecourses to discard unwanted data from the start of each run.
+The subsequent processing steps have been adjusted to compensate for this change.
 
-    glass_coherence_block_preproc sXXXX roi-img
+::
 
-To check this has worked correctly, load the subject's anatomical image and overlay the ROI images - they should lie within expected locations.
+    glass_coherence_block_proc sXXXX trim
 
 
 Coregistration
 ~~~~~~~~~~~~~~
 
-The anatomical and ROI images are in a completely different space to the functionals, so they need to be coregistered.
+The anatomical image is in a completely different space to the functionals, so they need to be coregistered.
 
 The automatic FSL tools are *horrible* at doing this coregistration (in my experience), so we need to do it more manually using SPM.
 
-Rough alignment
-^^^^^^^^^^^^^^^
+Follow the instructions `here <http://visual-localiser-analysis-notes.readthedocs.org/en/latest/func.html#coregister-base-anatomy-to-functional-session>`__ to get the registration, then run::
 
-The coregistration algorithm is helped enormously if the images are in rough world-space alignment before it begins.
-
-#. In SPM, click ``Display`` and select the mean functional image.
-#. Place the crosshairs over a prominent landmark, such as the furthest posterior region of the occipital lobes. Note down the 3 values in the ``mm`` box.
-#. Click ``Display`` again, this time selecting the anatomical image.
-#. Place the crosshairs over the same landmark as was used in the functionals, and again note the 3 values in the ``mm`` box.
-#. Subtract (element-wise) the anatomical ``mm`` values from the functional ``mm`` values, and use the output to populate the ``right``, ``forward``, and ``up`` fields.
-#. To check your calculations, change the ``mm`` field to match what it was for the functional and the crosshairs should move to the same landmark.
-#. Click ''Reorient images'' and select the anatomical **and the ROI images**.
-
-Coregistration
-^^^^^^^^^^^^^^
-
-#. In SPM, click ``Coregister (Estimate & Reslice)``.
-#. As the ``Reference image``, select the mean functional image.
-#. As the ``Images to reslice``, select the anatomical image.
-#. As the ``Other images``, select all the ROI images.
-#. Under ``Reslice options``, change ``Interpolation`` to ``Nearest neighbour`` and ``Filename prefix`` to ``rs``.
-#. Under ``File``, click ``Save batch`` and call it ``coreg.mat`` under the ``anat`` directory.
-#. Click on the play icon to set it running.
-
-Verification
-^^^^^^^^^^^^
-
-To check that the coregistration has performed well:
-
-#. In SPM, click ``Check reg``.
-#. Select the mean functional image first, and then the (unresliced) anatomical image.
-#. Click around some prominent landmarks and check that the two images are in register.
+    glass_coherence_block_proc sXXXX surf_reg
 
 
-ROI preparation
-~~~~~~~~~~~~~~
+Surface projection
+~~~~~~~~~~~~~~~~~~
 
-Converts the ROI image masks to a set of coordinates, save in numpy format::
+The functional images, in their volume space, are now projected onto the cortical surface by averaging between the white matter and pial surfaces::
 
-    glass_coherence_block_preproc sXXXX roi
-
-
-Voxel timecourse extraction
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Extracts voxel timecourses for each voxel in each ROI::
-
-    glass_coherence_block_preproc sXXXX vtc
-
-The resulting timecourses have been trimmed.
+    glass_coherence_block_proc sXXXX vol_to_surf
 
 
-Voxel culling
-~~~~~~~~~~~~~
+Design preparation
+~~~~~~~~~~~~~~~~~~
 
-Removes voxels that have high mean-normalised variance::
+We need to extract the stimulus and experiment design information from the log files and output it in a format suitable for reading into AFNI's GLM analysis programs::
 
-    glass_coherence_block_preproc sXXXX vtc-cull
-
-
-Timecourse averaging
-~~~~~~~~~~~~~~~~~~~~
-
-Averages over the voxels in each ROI::
-
-    glass_coherence_block_preproc sXXXX vtc-avg
-
-
-Event info
-~~~~~~~~~~
-
-Computes the experimental design info from the logfiles::
-
-    glass_coherence_block_preproc sXXXX evt-info
-
-The extracted design corresponds to the trimmed voxel timecourses.
+    glass_coherence_block_proc sXXXX design_prep
 
 
 Subject-level analysis
 ----------------------
 
-The subject-level analysis is done with the command ``glass_coherence_block_subj_analysis``
-For help on using this script, run::
+GLM
+~~~
 
-    glass_coherence_block_subj_analysis --help
+Runs a GLM analysis::
 
-Typical usage is::
-
-    glass_coherence_block_subj_analysis sXXXX stage
-
-where ``sXXXX`` is the subject ID and ``stage`` is the preprocessing stage (see below).
-
-The stages are as follows:
-
-Beta weights
-~~~~~~~~~~~~
-
-Extracts the beta weights for each ROI based on a GLM analysis::
-
-    glass_coherence_block_subj_analysis sXXXX beta
+    glass_coherence_block_proc sXXXX glm
 
 
+Localiser mask
+~~~~~~~~~~~~~~
 
-Analysis datafiles
-==================
+Creates a mask of activated nodes from the GLM analysis::
 
-The pre-processing / analysis pipeline produces the following files:
+    glass_coherence_block_proc sXXXX loc_mask
 
-coords-ROI
-  ( 3 axes, n voxels ) array of coordinate locations.
 
-coords_sel-ROI
-  ( 3 axes, n(s) voxels ) array of coordinate locations, *after* voxel selection based on the localiser analysis.
+Percent signal change
+~~~~~~~~~~~~~~~~~~~~~
 
-vtc-ROI
-  ( 128 volumes, 10 runs, n voxels ) array of BOLD signals. These are in scanner units, in a timeseries that has been trimmed and HRF corrected.
+Converts the fitted beta values from the GLM to percent signal change::
 
-vtc_sel-ROI
-  ( 128 volumes, 10 runs, n(s) voxels ) array of BOLD signals. As above, but only including selected voxels.
+    glass_coherence_block_proc sXXXX beta_to_psc
 
-loc_vtc_sel-ROI
-  ( 128 volumes, 2 runs, n(s) voxels ) array of BOLD signals. As above, but for the localiser data.
 
-vtc_avg-ROI
-  ( 128 volumes, 10 runs ) array of BOLD signals. ROI timecourses averaged across all *selected* voxels, high-pass filtered, and covert to percent signal change.
+ROI statistics
+~~~~~~~~~~~~~~
 
-loc_vtc-ROI
-  ( 128 volumes, 2 runs, n voxels ) array of BOLD signals. As above, but for the localiser data.
+Extracts the node values for each ROI::
 
-loc_stat-ROI
-  ( n voxels, [ t statistic, p value ] ) array of statistics data. These report the results of a left side stimulation > right side stimulation localiser analysis.
+    glass_cohernce_block_proc sXXXX roi_xtr
 
-design
-  ( 16 blocks, 10 runs, [ i_vol, i_cond ) integer array.
-  ``i_vol`` is the volume index for the start of the block in a timecourse that has been trimmed and HRF corrected, and ``i_cond`` is the condition.
 
-loc_design
-  ( 16 blocks, 2 runs, [ i_vol, i_cond ] ) integer array.
-  As above, but for the localiser data.
+Adjusted timecourses
+~~~~~~~~~~~~~~~~~~~~
 
-block
-  ( 160 blocks, [ psc, cond, block in run, run ] ) array. Shows the percent signal change of each block, obtained by averaging all the timepoints corresponding to the block.
+Synthesizes raw and predicted timecourses that are adjusted to remove baseline trends::
+
+    glass_coherence_block_proc sXXXX raw_adj
+
+
+ROI timecourses
+~~~~~~~~~~~~~~~
+
+Compiles raw and predicted timecourses (adjusted) for each ROI::
+
+    glass_coherence_block_proc sXXXX roi_tc
+
+
+Timecourse visualisation
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Plots the average raw and predicted timecourses (adjusted) for each run (panel) and ROI (figure)::
+
+    glass_coherence_block_proc sXXXX plot_tc
