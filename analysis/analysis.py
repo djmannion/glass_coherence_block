@@ -16,7 +16,7 @@ import glass_coherence_block.config
 import glass_coherence_block.analysis.paths
 
 
-def exp_glm( paths, conf ):
+def glm( paths, conf ):
 	"""Experiment GLM"""
 
 	start_dir = os.getcwd()
