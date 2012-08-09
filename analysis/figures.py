@@ -134,18 +134,29 @@ def plot_roi_psc( paths, conf ):
 
 		data = ( data.T - np.mean( data, axis = 1 ) ).T
 
+		ci = np.loadtxt( "%s_%s.txt" % ( paths[ "roi_ci" ], roi_name.lower() ) )
+
 		for i_subj in xrange( data.shape[ 0 ] ):
 
 			ax.plot( x,
 			         data[ i_subj, : ],
-			         color = [ 0.5, 0.5, 0.5 ]
+			         color = [ 0.7, 0.7, 0.7 ]
 			       )
+
+		assert( np.allclose( np.mean( data, axis = 0 ), ci[ 0, :4 ] ) )
 
 		ax.plot( x,
 		         np.mean( data, axis = 0 ),
 		         color = "k",
 		         linewidth = 3
 		       )
+
+		for ci_y in ci[ 1:, :4 ]:
+
+			ax.plot( x,
+			         ci_y,
+			         "k--"
+			       )
 
 		_cleanup_fig( ax )
 

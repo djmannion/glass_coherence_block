@@ -8,6 +8,7 @@ from __future__ import division
 import os, os.path
 
 import numpy as np
+import scikits.bootstrap
 
 import fmri_tools.utils
 
@@ -551,3 +552,71 @@ def group_rois( paths, conf ):
 
 		roi_file.close()
 
+
+def group_bootstrap( paths, conf ):
+	"""Bootstrap the ROI values"""
+
+	def _subj_mean( x ):
+		y = np.mean( x, axis = 0 )
+		print y
+		return y
+
+	def _subj_linear_trend( x ):
+
+		y = np.mean( np.sum( x * np.array( [ -3, -1, 1, 3 ] ), axis = 1 ) )
+		return y
+
+	roi_names = [ roi_info[ 0 ] for roi_info in conf[ "ana" ][ "rois" ] ]
+
+	trends = np.array( [ [ -3, -1, +1, +3 ],  # linear
+	                     [ +1, -1, -1, +1 ],  # quadratic
+	                     [ -1, +3, -3, +1 ]   # cubic
+	                   ]
+	                 )
+
+	alpha = conf[ "ana" ][ "ci_p" ]
+
+	for ( roi_name, roi_seed ) in zip( roi_names, conf[ "ana" ][ "roi_seeds" ] ):
+
+		roi_path = "%s-%s.txt" % ( paths[ "roi_mean" ], roi_name )
+
+		mean_cis = np.empty( ( 3, 4 ) )
+		mean_cis.fill( np.NAN )
+
+		trend_cis = np.empty( ( 3, 3 ) )
+		trend_cis.fill( np.NAN )
+
+		# first column is subject id
+		roi_data = np.loadtxt( roi_path, usecols = [ 1, 2, 3, 4 ] )
+
+		# mean of each subject; (6,)
+		subj_mean = np.mean( roi_data, axis = 1 )
+		roi_data -= np.tile( subj_mean, ( 4, 1 ) ).T
+
+		for i_col in xrange( 4 ):
+
+			np.random.seed( roi_seed )
+
+			mean_cis[ 0, i_col ] = np.mean( roi_data[ :, i_col ] )
+
+			mean_cis[ 1:, i_col ] = scikits.bootstrap.ci( roi_data[ :, i_col ],
+			                                              np.mean,
+			                                              alpha = alpha
+			                                            )
+
+		for ( i_trend, trend ) in enumerate( trends ):
+
+			np.random.seed( roi_seed )
+
+			trend_data = np.sum( roi_data * trend, axis = 1 )
+
+			trend_cis[ 0, i_trend ] = np.mean( trend_data )
+
+			trend_cis[ 1:, i_trend ] = scikits.bootstrap.ci( trend_data,
+			                                                 np.mean,
+			                                                 alpha = alpha
+			                                               )
+
+		boot_path = "%s_%s.txt" % ( paths[ "roi_ci" ], roi_name )
+
+		np.savetxt( boot_path, np.hstack( ( mean_cis, trend_cis ) ) )

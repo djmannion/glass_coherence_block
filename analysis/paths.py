@@ -300,4 +300,8 @@ def get_group_paths( conf ):
 	                                    "glass_coherence_block_group"
 	                                  )
 
+	paths[ "roi_ci" ] = os.path.join( paths[ "base_dir" ],
+	                                  "glass_coherence_block_group-ci"
+	                                )
+
 	return paths
