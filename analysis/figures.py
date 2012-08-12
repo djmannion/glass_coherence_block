@@ -48,7 +48,7 @@ def _cleanup_fig( ax ):
 	ax.yaxis.set_ticks_position( "left" )
 
 
-def plot_subj_tc( paths, conf ):
+def plot_subj_tc( paths, conf, save_path = None ):
 	"""a"""
 
 	_set_defaults()
@@ -101,8 +101,14 @@ def plot_subj_tc( paths, conf ):
 			ax.plot( raw_data[ vol_range ] )
 			ax.plot( pred_data[ vol_range ] )
 
+		if save_path is not None:
 
-	plt.show()
+			fig_path = "%s-%s.svg" % ( save_path, roi_name )
+
+			plt.savefig( fig_path )
+
+	if save_path is None:
+		plt.show()
 
 def plot_roi_psc( paths, conf ):
 	"""a"""
