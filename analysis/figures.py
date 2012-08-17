@@ -12,6 +12,7 @@ def _set_defaults():
 	"""
 
 	params = { 'axes.labelsize': 8,
+	           'axes.titlesize' : 10,
 	           'font.family' : 'Arial',
 	           'font.sans-serif' : 'Helvetica',
 	           'text.fontsize': 12,
@@ -49,7 +50,8 @@ def _cleanup_fig( ax ):
 
 
 def plot_subj_tc( paths, conf, save_path = None ):
-	"""a"""
+	"""Plots the raw and predicted (both adjusted) timecourses for each run and
+	ROI for a single subject"""
 
 	_set_defaults()
 
@@ -57,11 +59,13 @@ def plot_subj_tc( paths, conf, save_path = None ):
 	                   conf[ "acq" ][ "tr_s" ]
 	                 )
 
+	y_head = 10
+
 	for ( roi_name, _ ) in conf[ "ana" ][ "rois" ]:
 
 		fig = plt.figure()
 
-		fig.set_size_inches( 9, 5, forward = True )
+		fig.set_size_inches( 7, 7, forward = True )
 
 		# assuming 12 runs
 		gs = gridspec.GridSpec( 4, 3 )
@@ -88,6 +92,11 @@ def plot_subj_tc( paths, conf, save_path = None ):
 		raw_data = np.mean( raw_data, axis = 0 )
 		pred_data = np.mean( pred_data, axis = 0 )
 
+		y_min = 0
+		y_max = 0
+
+		ax_list = []
+
 		for i_run in xrange( conf[ "subj" ][ "n_runs" ] ):
 
 			vol_range = np.arange( i_run * n_vols_per_run,
@@ -101,17 +110,58 @@ def plot_subj_tc( paths, conf, save_path = None ):
 			ax.plot( raw_data[ vol_range ] )
 			ax.plot( pred_data[ vol_range ] )
 
+			curr_y_max = np.max( [ np.max( raw_data[ vol_range ] ),
+			                       np.max( pred_data[ vol_range ] )
+			                     ]
+			                   )
+
+			if curr_y_max > y_max:
+				y_max = curr_y_max
+
+			curr_y_min = np.min( [ np.min( raw_data[ vol_range ] ),
+			                       np.min( pred_data[ vol_range ] )
+			                     ]
+			                   )
+
+			if curr_y_min < y_min:
+				y_min = curr_y_min
+
+			ax_list.append( ax )
+
+		for ( i_run, ax ) in enumerate( ax_list ):
+
+			ax.set_ylim( [ y_min - y_head, y_max + y_head ] )
+
+			_cleanup_fig( ax )
+
+			ax.set_title( "Run %d" % ( i_run + 1 ) )
+
+			ax.set_xlabel( "Time (volumes)" )
+
+			ax.set_ylabel( "Signal (a.u.)" )
+
+		fig.suptitle( roi_name.upper() )
+
+		plt.subplots_adjust( left = 0.09,
+		                     bottom = 0.08,
+		                     right = 0.98,
+		                     top = 0.90,
+		                     wspace = 0.39,
+		                     hspace = 0.73
+		                   )
+
 		if save_path is not None:
 
-			fig_path = "%s-%s.svg" % ( save_path, roi_name )
+			fig_path = "%s-%s.pdf" % ( save_path, roi_name )
 
 			plt.savefig( fig_path )
 
 	if save_path is None:
 		plt.show()
 
+
 def plot_roi_psc( paths, conf ):
-	"""a"""
+	"""Plot the PSC for each ROI, plus CIs and subjects"""
 
 	roi_order = [ "V1", "V2", "V3",
 	              "V3AB", "LO1", "LO2",
@@ -122,7 +172,7 @@ def plot_roi_psc( paths, conf ):
 
 	fig = plt.figure()
 
-	fig.set_size_inches( 9, 5, forward = True )
+	fig.set_size_inches( 7, 7, forward = True )
 
 	gs = gridspec.GridSpec( 3, 3 )
 
@@ -181,16 +231,141 @@ def plot_roi_psc( paths, conf ):
 		         fontsize = 10 / 1.25
 		       )
 
-	plt.subplots_adjust( left = 0.07,
+	plt.subplots_adjust( left = 0.09,
 	                     bottom = 0.07,
 	                     right = 0.97,
 	                     top = 0.97,
-	                     wspace = 0.28,
-	                     hspace = 0.22
+	                     wspace = 0.41,
+	                     hspace = 0.34
 	                   )
 
 	plt.show()
 
+
+def plot_trends( paths, conf ):
+	"""a"""
+
+	roi_order = [ "V1", "V2", "V3",
+	              "V3AB", "LO1", "LO2",
+	              "hV4", "VO1", "hMTp"
+	            ]
+
+	trends = [ "Linear", "Quadratic", "Cubic" ]
+
+	trend_cf = [ [ -3, -1, +1, +3 ],
+	             [ +1, -1, -1, +1 ],
+	             [ -1, +3, -3, +1 ]
+	           ]
+
+	_set_defaults()
+
+	fig = plt.figure()
+
+	fig.set_size_inches( 3, 7, forward = True )
+
+	gs = gridspec.GridSpec( 3, 1 )
+
+	x_off = 0.2
+
+	for ( i_trend, trend_name ) in enumerate( trends ):
+
+		ax = plt.subplot( gs[ i_trend ] )
+		ax.hold( True )
+
+		for ( i_roi, roi_name ) in enumerate( roi_order ):
+
+			stat = np.loadtxt( "%s-%s.txt" % ( paths[ "roi_stat" ], roi_name.lower() ) )
+			grp = np.loadtxt( "%s-%s.txt" % ( paths[ "roi_mean" ], roi_name.lower() ),
+			                  usecols = np.arange( 1, 5 )
+			                )
+
+			for i_subj in xrange( grp.shape[ 0 ] ):
+				subj_cf = np.sum( grp[ i_subj, : ] * trend_cf[ i_trend ] )
+
+				ax.scatter( i_roi, subj_cf, color = [ 0.8 ] * 3 )
+
+			ax.plot( [ i_roi - x_off ] * 2,
+			         [ stat[ 3, i_trend ], stat[ 4, i_trend ] ],
+			         "w"
+			       )
+
+			ax.plot( [ i_roi + x_off ] * 2,
+			         [ stat[ 3, i_trend ], stat[ 4, i_trend ] ],
+			         "w"
+			       )
+
+			ax.scatter( i_roi, stat[ 0, i_trend ] )
+
+	plt.show()
+
+
+def plot_trends_old( paths, conf ):
+	"""Plot the trends for each ROI"""
+
+	roi_order = [ "V1", "V2", "V3",
+	              "V3AB", "LO1", "LO2",
+	              "hV4", "VO1", "hMTp"
+	            ]
+
+	_set_defaults()
+
+	fig = plt.figure()
+
+	fig.set_size_inches( 7, 7, forward = True )
+
+	gs = gridspec.GridSpec( 3, 3 )
+
+	x = np.arange( 3 )
+
+	for ( i_roi, roi_name ) in enumerate( roi_order ):
+
+		ax = plt.subplot( gs[ i_roi ] )
+
+		ax.hold( True )
+
+		ax.plot( [ -0.5, 2.5 ], [ 0, 0 ], "k--" )
+
+		ci = np.loadtxt( "%s_%s.txt" % ( paths[ "roi_ci" ], roi_name.lower() ) )
+
+		for ( i_plt, i_ci ) in enumerate( np.arange( 4, 7 ) ):
+
+			ax.plot( [ i_plt, i_plt ],
+			         ci[ 1:, i_ci ],
+			         'k'
+			       )
+
+			ax.scatter( i_plt,
+			            ci[ 0, i_ci ]
+			          )
+
+
+		_cleanup_fig( ax )
+
+		ax.set_xlim( [ -0.5, 2.5 ] )
+		ax.set_ylim( [ -2, 2 ] )
+
+		ax.set_ylabel( "Trend coefficient" )
+		ax.set_xlabel( "Trend" )
+
+		ax.set_xticks( x )
+		ax.set_xticklabels( [ "Linear", "Quad.", "Cubic" ] )
+
+		ax.text( 0.8,
+		         0.9,
+		         roi_name,
+		         transform = ax.transAxes,
+		         fontsize = 10 / 1.25
+		       )
+
+	plt.subplots_adjust( left = 0.09,
+	                     bottom = 0.07,
+	                     right = 0.97,
+	                     top = 0.97,
+	                     wspace = 0.41,
+	                     hspace = 0.34
+	                   )
+
+	plt.show()
 
 def plot_vox_psc( paths, conf ):
 	"""a"""

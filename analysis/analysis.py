@@ -6,9 +6,10 @@ block design fMRI experiment.
 from __future__ import division
 
 import os, os.path
+import tempfile
 
 import numpy as np
-import scikits.bootstrap
+import scipy.stats
 
 import fmri_tools.utils
 
@@ -542,7 +543,11 @@ def group_rois( paths, conf ):
 
 			roi_data = np.vstack( roi_data )
 
+			# average over nodes
 			roi_data = np.mean( roi_data, axis = 0 )
+
+			# subtract the average over conditions
+			roi_data -= np.mean( roi_data )
 
 			subj_roi_txt = ( subj_id +
 			                 "\t%.18e\t%.18e\t%.18e\t%.18e\n" % tuple( roi_data )
@@ -553,18 +558,8 @@ def group_rois( paths, conf ):
 		roi_file.close()
 
 
-def group_bootstrap( paths, conf ):
-	"""Bootstrap the ROI values"""
-
-	def _subj_mean( x ):
-		y = np.mean( x, axis = 0 )
-		print y
-		return y
-
-	def _subj_linear_trend( x ):
-
-		y = np.mean( np.sum( x * np.array( [ -3, -1, 1, 3 ] ), axis = 1 ) )
-		return y
+def group_stat( paths, conf ):
+	"""Permutation test on the ROI values"""
 
 	roi_names = [ roi_info[ 0 ] for roi_info in conf[ "ana" ][ "rois" ] ]
 
@@ -574,49 +569,102 @@ def group_bootstrap( paths, conf ):
 	                   ]
 	                 )
 
-	alpha = conf[ "ana" ][ "ci_p" ]
+	n_perm = conf[ "ana" ][ "n_perm" ]
 
-	for ( roi_name, roi_seed ) in zip( roi_names, conf[ "ana" ][ "roi_seeds" ] ):
+	trend_perm_dist = np.empty( ( n_perm,
+	                              len( roi_names ),
+	                              trends.shape[ 0 ]
+	                            )
+	                          )
+	trend_perm_dist.fill( np.NAN )
+
+		# ( roi, ( mean, p, q, psc@2.5p, psc@97.5p ), ( linear, quad, cub ) )
+	stat = np.empty( ( len( roi_names ), 5, trends.shape[ 0 ] ) )
+
+	roi_info = zip( roi_names, conf[ "ana" ][ "roi_seeds" ] )
+
+	for ( i_roi, ( roi_name, roi_seed ) ) in enumerate( roi_info ):
 
 		roi_path = "%s-%s.txt" % ( paths[ "roi_mean" ], roi_name )
-
-		mean_cis = np.empty( ( 3, 4 ) )
-		mean_cis.fill( np.NAN )
-
-		trend_cis = np.empty( ( 3, 3 ) )
-		trend_cis.fill( np.NAN )
 
 		# first column is subject id
 		roi_data = np.loadtxt( roi_path, usecols = [ 1, 2, 3, 4 ] )
 
-		# mean of each subject; (6,)
-		subj_mean = np.mean( roi_data, axis = 1 )
-		roi_data -= np.tile( subj_mean, ( 4, 1 ) ).T
+		( n_subj, n_cond ) = roi_data.shape
 
-		for i_col in xrange( 4 ):
+		np.random.seed( roi_seed )
 
-			np.random.seed( roi_seed )
+		perm_data = np.empty( ( n_perm, n_subj, n_cond ) )
+		perm_data.fill( np.NAN )
 
-			mean_cis[ 0, i_col ] = np.mean( roi_data[ :, i_col ] )
+		for i_perm in xrange( n_perm ):
 
-			mean_cis[ 1:, i_col ] = scikits.bootstrap.ci( roi_data[ :, i_col ],
-			                                              np.mean,
-			                                              alpha = alpha
-			                                            )
+			perm_data[ i_perm, :, : ] = np.vstack( ( roi_data[ i_subj,
+			                                                   np.random.permutation( n_cond )
+			                                                 ]
+			                                         for i_subj in xrange( n_subj )
+			                                       )
+			                                     )
 
-		for ( i_trend, trend ) in enumerate( trends ):
+		for ( i_trend, trend_coef ) in enumerate( trends ):
 
-			np.random.seed( roi_seed )
+			# multiply by the trend coefficients, then sum over condition
+			trend_data = np.sum( roi_data * trend_coef, axis = 1 )
 
-			trend_data = np.sum( roi_data * trend, axis = 1 )
+			mu = np.mean( trend_data, axis = 0 )
 
-			trend_cis[ 0, i_trend ] = np.mean( trend_data )
+			# sum over conditions
+			coef_dist = np.sum( perm_data * trend_coef, axis  = 2 )
+			# average over subjects
+			coef_dist = np.mean( coef_dist, axis = 1 )
 
-			trend_cis[ 1:, i_trend ] = scikits.bootstrap.ci( trend_data,
-			                                                 np.mean,
-			                                                 alpha = alpha
-			                                               )
+			# use the absolute value to get a two-tailed p
+			trend_p = scipy.stats.percentileofscore( np.abs( coef_dist ),
+			                                         np.abs( mu )
+			                                       )
 
-		boot_path = "%s_%s.txt" % ( paths[ "roi_ci" ], roi_name )
+			trend_p = ( 100 - trend_p ) / 100.0
 
-		np.savetxt( boot_path, np.hstack( ( mean_cis, trend_cis ) ) )
+			stat[ i_roi, 0, i_trend ] = mu
+			stat[ i_roi, 1, i_trend ] = trend_p
+
+			crit_psc = [ scipy.stats.scoreatpercentile( coef_dist,
+			                                            thresh
+			                                          )
+			             for thresh in [ 2.5, 97.5 ]
+			           ]
+
+			stat[ i_roi, 3:5, i_trend ] = crit_psc
+
+			trend_perm_dist[ :, i_roi, i_trend ] = coef_dist
+
+	for i_trend in xrange( trends.shape[ 0 ] ):
+
+		# now we want to convert all the p's into q's, over ROIs
+		p_file = tempfile.NamedTemporaryFile()
+		q_file = tempfile.NamedTemporaryFile()
+
+		np.savetxt( p_file.name, stat[ :, 1, i_trend ] )
+
+		fdr_cmd = [ "3dFDR",
+		            "-input1D", p_file.name,
+		            "-output", q_file.name,
+		            "-qval",
+		            "-new",
+		            "-overwrite"
+		          ]
+
+		fmri_tools.utils.run_cmd( fdr_cmd,
+		                          env = fmri_tools.utils.get_env()
+		                        )
+
+		q_vals = np.loadtxt( q_file.name )
+
+		stat[ :, 2, i_trend ] = q_vals
+
+
+	for ( i_roi, roi_name ) in enumerate( roi_names ):
+		np.savetxt( "%s-%s.txt" % ( paths[ "roi_stat" ], roi_name ),
+		            stat[ i_roi, :, : ]
+		          )
+
