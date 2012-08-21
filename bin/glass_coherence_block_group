@@ -20,6 +20,9 @@ def main():
 	eg = """
 	Steps:
 	  rois : aggregates the ROIs across subjects.
+	  stat : compute the trends and permutations for stats.
+	  plot_roi_psc : plot the PSC for each ROI across conditions.
+	  plot_trends : plot the trend coefficients.
 	
 	---N.B.---
 	
