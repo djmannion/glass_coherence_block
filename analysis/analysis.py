@@ -578,7 +578,7 @@ def group_stat( paths, conf ):
 	                          )
 	trend_perm_dist.fill( np.NAN )
 
-		# ( roi, ( mean, p, q, psc@2.5p, psc@97.5p ), ( linear, quad, cub ) )
+	# ( roi, ( mean, p, q, psc@2.5p, psc@97.5p ), ( linear, quad, cub ) )
 	stat = np.empty( ( len( roi_names ), 5, trends.shape[ 0 ] ) )
 
 	roi_info = zip( roi_names, conf[ "ana" ][ "roi_seeds" ] )
@@ -661,7 +661,6 @@ def group_stat( paths, conf ):
 		q_vals = np.loadtxt( q_file.name )
 
 		stat[ :, 2, i_trend ] = q_vals
-
 
 	for ( i_roi, roi_name ) in enumerate( roi_names ):
 		np.savetxt( "%s-%s.txt" % ( paths[ "roi_stat" ], roi_name ),

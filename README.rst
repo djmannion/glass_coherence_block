@@ -208,3 +208,33 @@ Timecourse visualisation
 Plots the average raw and predicted timecourses (adjusted) for each run (panel) and ROI (figure)::
 
     glass_coherence_block_proc sXXXX plot_tc
+
+
+Group processing
+----------------
+
+ROI aggregation
+^^^^^^^^^^^^^^^
+
+Grabs the ROI data for each subject/hemisphere and collates it together by averaging over nodes::
+
+  glass_coherence_block_group rois
+
+
+Statistics
+^^^^^^^^^^
+
+Compute the trend coefficients and run permutation tests to get significance values (p and q)::
+
+  glass_coherence_block_group stat
+
+
+
+
+
+
+
+
+
+
+
