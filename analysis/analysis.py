@@ -52,6 +52,11 @@ def glm( paths, conf ):
 	              for t_coef in trend_coef
 	            ]
 
+	# minus one because the range is inclusive
+	censor_vols = conf[ "exp" ][ "pre_len_s" ] / conf[ "acq" ][ "tr_s" ] - 1
+
+	censor_str = "*:0-%d" % censor_vols
+
 	for hemi in [ "lh", "rh" ]:
 
 
@@ -65,9 +70,11 @@ def glm( paths, conf ):
 		              )
 
 		glm_cmd.extend( [ "-force_TR", "%.3f" % conf[ "acq" ][ "tr_s" ],
-		                  "-polort", conf[ "ana" ][ "poly_ord" ],
-		                  "-ortvec", paths[ "ana" ][ "mot_est" ], "mot",
+		                  "-polort", "-1",
+		                  "-ortvec", paths[ "ana" ][ "bl_poly" ], "poly",
+		                  "-ortvec", paths[ "summ" ][ "mot_est_file" ], "mot",
 		                  "-local_times",
+		                  "-CENSORTR", censor_str,
 		                  "-xjpeg", "exp_design.png",
 		                  "-x1D", "exp_design",
 		                  "-overwrite",

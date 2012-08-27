@@ -54,7 +54,7 @@ def _get_ana_conf( conf ):
 
 	hrf_model = "SPMG1(%d)" % conf[ "exp" ][ "block_len_s" ]
 
-	poly_ord = "3"
+	poly_ord = 4
 
 	loc_q = 0.01
 
@@ -194,7 +194,9 @@ def _get_subj_conf( subj_id = None ):
 	          "comments" : "",
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
-	          "run_st_mot_order" : ( 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6 ),
+	          "mot_base" : 7,
+	          "mask_z_mm" : 85,
+	          "nudge_vals" : [ -43, 6, -15 ],
 	          "node_k" : { "lh" : 140847,
 	                       "rh" : 141381
 	                     }
