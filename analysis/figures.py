@@ -6,6 +6,7 @@ import matplotlib.gridspec as gridspec
 import numpy as np
 import scipy.stats
 
+import glass_coherence_block.analysis.paths
 
 def _set_defaults():
 	"""Set some sane defaults for figures.
@@ -241,6 +242,104 @@ def plot_roi_psc( paths, conf ):
 	                     top = 0.97,
 	                     wspace = 0.41,
 	                     hspace = 0.34
+	                   )
+
+	plt.show()
+
+
+def plot_lin_trend_hist( paths, conf ):
+	"""a"""
+
+	roi_order = [ "V1", "V2", "V3",
+	              "V3AB", "LO1", "LO2",
+	              "hV4", "VO1", "hMTp"
+	            ]
+
+	_set_defaults()
+
+	fig = plt.figure()
+
+	fig.set_size_inches( 7.08661, 5.08661, forward = True )
+
+	gs = gridspec.GridSpec( 3, 3 )
+
+	x = np.linspace( -10.0, 10.0, 500 )
+	px = 4
+
+	ix = np.logical_and( x > -px, x < px )
+
+	for ( i_roi, roi_name ) in enumerate( roi_order ):
+
+		ax = plt.subplot( gs[ i_roi ] )
+
+		ax.hold( True )
+
+		mu = []
+
+		for ( i_subj, subj_id ) in enumerate( conf[ "all_subj" ] ):
+
+			subj_conf = glass_coherence_block.config.get_conf( subj_id )
+			subj_paths = glass_coherence_block.analysis.paths.get_subj_paths( subj_conf )
+
+			psc = np.vstack( ( np.loadtxt( "%s_%s_%s.txt" % ( subj_paths[ "rois" ][ "psc" ],
+			                                                  roi_name.lower(),
+			                                                  hemi
+			                                                )
+			                             )
+			                   for hemi in [ "lh", "rh" ]
+			                 )
+			               )
+
+			lin_coeff = np.sum( psc * np.array( [ -3, -1, +1, +3 ] ), axis = 1 )
+
+			kde = scipy.stats.gaussian_kde( lin_coeff )
+
+			y = kde.evaluate( x )
+
+			y /= np.sum( y )
+
+			ax.plot( x[ ix ], y[ ix ], color = [ 0.0 ] * 3 )
+
+			mu.append( np.mean( lin_coeff ) )
+
+		ylim = ax.get_ylim()
+
+		ax.plot( [ 0, 0 ], [ 0, ylim[ 1 ] ], "k--", zorder = -100 )
+
+		for subj_mu in mu:
+
+			mu_h = 0.05 * ylim[ 1 ]
+
+			ax.plot( [ subj_mu ] * 2, [ -mu_h - 0.02, -0.02 ], "k", alpha = 0.5 )
+
+		_cleanup_fig( ax )
+
+#		ax.set_xlim( [ -10, 110 ] )
+		ax.set_ylim( [ -0.01, ylim[ 1 ] ] )
+
+		if i_roi == 6:
+			ax.set_xlabel( "Linear trend coefficient" )
+			ax.set_ylabel( "Density (norm)" )
+
+			ax.set_yticks( [ 0, 0.01, 0.02, 0.03 ] )
+
+		else:
+			ax.set_xticklabels( [] )
+			ax.set_yticklabels( [] )
+
+		ax.text( 0.1,
+		         0.9,
+		         roi_name,
+		         transform = ax.transAxes,
+		         fontsize = 10 / 1.25
+		       )
+
+	plt.subplots_adjust( left = 0.10,
+	                     bottom = 0.10,
+	                     right = 0.95,
+	                     top = 0.97,
+	                     wspace = 0.32,
+	                     hspace = 0.19
 	                   )
 
 	plt.show()

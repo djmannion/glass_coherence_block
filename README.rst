@@ -112,17 +112,6 @@ To verify that the unwarping has worked correctly:
 Also, look at the session summary image produced and make sure that all looks good across the session.
 
 
-Trim
-~~~~
-
-This trims the voxel timecourses to discard unwanted data from the start of each run.
-The subsequent processing steps have been adjusted to compensate for this change.
-
-::
-
-    glass_coherence_block_proc sXXXX trim
-
-
 Coregistration
 ~~~~~~~~~~~~~~
 

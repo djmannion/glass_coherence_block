@@ -1,11 +1,12 @@
 """
-Set of routines to pre-process the fMRI data for the natural scenes aperture
-fMRI experiment.
+Set of routines to pre-process the fMRI data for the Glass patterns block
+design fMRI experiment.
 """
 
 from __future__ import division
 
 import os.path
+import tempfile
 
 import numpy as np
 
@@ -65,47 +66,100 @@ def convert( paths, conf ):
 	                                    )
 
 
-def st_motion_correct( paths, conf ):
-	"""Performs slice-timing and motion correction"""
+def run_masks( paths, conf ):
+	"""Make a brainmask for each run and compute the inverse variance within."""
 
-	# get the order of runs to pass to the correction algorithm
-	# this is done because the algorithm realigns all to the first entry, which
-	# normally corresponds to the first run acquired, but we might want them to
-	# be aligned with a different run - one closer to a fieldmap, for example
-	run_order = conf[ "subj" ][ "run_st_mot_order" ]
+	for i_run in xrange( conf[ "subj" ][ "n_runs" ] ):
 
-	# reorder the paths
-	# (the -1 is because the runs are specified in subj_conf in a one-based
-	# index; ie. run 1 is the first run)
-	orig_paths = [ paths[ "func" ][ "orig_files" ][ i_run - 1 ]
-	               for i_run in run_order
-	             ]
-	corr_paths = [ paths[ "func" ][ "corr_files" ][ i_run - 1 ]
-	               for i_run in run_order
-	             ]
+		base_file = "%s.nii" % paths[ "func" ][ "orig_files" ][ i_run ]
+		mask_file = "%s.nii" % paths[ "func" ][ "mask_files" ][ i_run ]
 
-	# pull out the important information from the config
-	slice_order = conf[ "acq" ][ "slice_order" ]
-	tr_s = conf[ "acq" ][ "tr_s" ]
-	slice_info = ( conf[ "acq" ][ "slice_axis" ],
-	               conf[ "acq" ][ "slice_acq_dir" ]
-	             )
+		mask_cmd = [ "3dAutomask",
+		             "-prefix", mask_file,
+		             "-SI", "%.3f" % conf[ "subj" ][ "mask_z_mm" ],
+		             "-overwrite",
+		             base_file
+		           ]
 
-	# run the motion correction algorithm (slow)
-	motion_est = fmri_tools.preproc.correct_st_motion( orig_paths,
-	                                                   corr_paths,
-	                                                   slice_order,
-	                                                   tr_s,
-	                                                   slice_info
-	                                                 )
+		fmri_tools.utils.run_cmd( mask_cmd,
+		                          env = fmri_tools.utils.get_env(),
+		                          log_path = paths[ "summ" ][ "log_file" ]
+		                        )
 
-	# save the estimated motion parameters
-	np.save( paths[ "summ" ][ "mot_est_file" ],
-	         arr = motion_est
-	       )
+		std_tmp = tempfile.NamedTemporaryFile( suffix = ".nii" )
+
+		std_cmd = [ "3dTstat",
+		            "-stdev",
+		            "-overwrite",
+		            "-prefix", std_tmp.name,
+		            base_file
+		          ]
+
+		fmri_tools.utils.run_cmd( std_cmd,
+		                          env = fmri_tools.utils.get_env(),
+		                          log_path = paths[ "summ" ][ "log_file" ]
+		                        )
+
+		ivar_file = "%s.nii" % paths[ "func" ][ "ivar_files" ][ i_run ]
+
+		ivar_cmd = [ "3dcalc",
+		             "-a", std_tmp.name,
+		             "-b", mask_file,
+		             "-expr", "b/(a*a)",
+		             "-overwrite",
+		             "-prefix", ivar_file
+		           ]
+
+		fmri_tools.utils.run_cmd( ivar_cmd,
+		                          env = fmri_tools.utils.get_env(),
+		                          log_path = paths[ "summ" ][ "log_file" ]
+		                        )
+
+
+def motion_correct( paths, conf ):
+	"""Perform motion correction"""
+
+	i_mc_base = conf[ "subj" ][ "mot_base" ] - 1
+
+	mc_base = "%s.nii[0]" % paths[ "func" ][ "orig_files" ][ i_mc_base ]
+
+	mc_params = []
+
+	for i_run in xrange( conf[ "subj" ][ "n_runs" ] ):
+
+		orig_file = paths[ "func" ][ "orig_files" ][ i_run ]
+		corr_file = paths[ "func" ][ "corr_files" ][ i_run ]
+		ivar_file = paths[ "func" ][ "ivar_files" ][ i_run ]
+
+		mc_txt = tempfile.NamedTemporaryFile()
+
+		mc_cmd = [ "3dvolreg",
+		           "-twopass",
+		           "-prefix", "%s.nii" % corr_file,
+		           "-1Dfile", mc_txt.name,
+		           "-overwrite",
+		           "-weight", "%s.nii[0]" % ivar_file,
+		           "-base", mc_base,
+		           "-zpad", "5",
+		           "-heptic",
+		           "%s.nii" % orig_file
+		         ]
+
+		fmri_tools.utils.run_cmd( mc_cmd,
+		                          env = fmri_tools.utils.get_env(),
+		                          log_path = paths[ "summ" ][ "log_file" ]
+		                        )
+
+		run_mc_params = np.loadtxt( mc_txt.name )
+
+		mc_params.append( run_mc_params )
+
+	mc_params = np.vstack( mc_params )
+
+	np.savetxt( paths[ "summ" ][ "mot_est_file" ], mc_params )
 
 	# make a summary image from the corrected files
-	fmri_tools.preproc.gen_sess_summ_img( corr_paths,
+	fmri_tools.preproc.gen_sess_summ_img( paths[ "func" ][ "corr_files" ],
 	                                      paths[ "summ" ][ "corr_summ_file" ],
 	                                      log_path = paths[ "summ" ][ "log_file" ]
 	                                    )
@@ -130,7 +184,7 @@ def unwarp( paths, conf ):
 	"""
 
 	# combine the experiment and localiser functional info
-	func_fmap = paths[ "func" ][ "fmap_files" ]
+	func_fmap = paths[ "fmap" ][ "fmap_files" ][ 0 ]
 
 	func_corr = paths[ "func" ][ "corr_files" ]
 
@@ -139,7 +193,7 @@ def unwarp( paths, conf ):
 	for i_run in xrange( len( func_corr )  ):
 
 		fmri_tools.preproc.unwarp( func_corr[ i_run ],
-		                           func_fmap[ i_run ],
+		                           func_fmap,
 		                           func_uw[ i_run ],
 		                           conf[ "acq" ][ "dwell_ms" ],
 		                           conf[ "acq" ][ "ph_encode_dir" ],
@@ -159,36 +213,37 @@ def unwarp( paths, conf ):
 	                                    )
 
 
-def trim( paths, conf ):
-	"""Trims the timecourses"""
-
-	exp_start_vol = conf[ "exp" ][ "pre_len_s" ] / conf[ "acq" ][ "tr_s" ]
-	exp_n_vol = conf[ "exp" ][ "run_len_s" ] / conf[ "acq" ][ "tr_s" ]
-
-	for ( uw_file, trim_file ) in zip( paths[ "func" ][ "uw_files" ],
-	                                   paths[ "func" ][ "trim_files" ]
-	                                 ):
-
-		exp_trim_cmd = [ "fslroi",
-		                 uw_file,
-		                 trim_file,
-		                 "%d" % exp_start_vol,
-		                 "%d" % exp_n_vol
-		               ]
-
-		fmri_tools.utils.run_cmd( exp_trim_cmd,
-		                          env = fmri_tools.utils.get_env(),
-		                          log_path = paths[ "summ" ][ "log_file" ]
-		                        )
-
-
 def surf_reg( paths, conf ):
 	"""Coregisters an anatomical with the SUMA reference"""
 
-	fmri_tools.preproc.surf_reg( paths[ "reg" ][ "rs_exp_anat" ],
-	                             paths[ "reg" ][ "surf_anat" ],
-	                             paths[ "summ" ][ "log_file" ]
-	                           )
+	base_anat = paths[ "reg" ][ "anat" ]
+	reg_anat = paths[ "reg" ][ "reg_anat" ]
+
+	base_func = "%s.nii" % paths[ "summ" ][ "mean_file" ]
+
+	coreg_cmd = [ "3dAllineate",
+	              "-base", base_func,
+	              "-source", base_anat,
+	              "-prefix", reg_anat,
+	              "-cost", "nmi",
+	              "-master", "SOURCE",
+	              "-warp", "shift_rotate",
+	              "-onepass",
+	              "-verb"
+	            ]
+
+	for ( i_nudge, nudge_val ) in enumerate( conf[ "subj" ][ "nudge_vals" ] ):
+
+		coreg_cmd.extend( [ "-parini",
+		                    "%d" % ( i_nudge + 1 ),
+		                    "%.3f" % nudge_val
+		                  ]
+		                )
+
+	fmri_tools.utils.run_cmd( coreg_cmd,
+	                          env = fmri_tools.utils.get_env(),
+	                          log_path = paths[ "summ" ][ "log_file" ]
+	                        )
 
 
 def vol_to_surf( paths, conf ):
@@ -196,7 +251,7 @@ def vol_to_surf( paths, conf ):
 
 	start_dir = os.getcwd()
 
-	vol_files = paths[ "func" ][ "trim_files" ]
+	vol_files = paths[ "func" ][ "uw_files" ]
 
 	surf_files = paths[ "func" ][ "surf_files" ]
 
@@ -219,7 +274,7 @@ def vol_to_surf( paths, conf ):
 			             "-map_func", "ave",
 			             "-f_steps", "15",
 			             "-f_index", "nodes",
-			             "-sv", paths[ "reg" ][ "reg" ],
+			             "-sv", paths[ "reg" ][ "reg_anat" ],
 			             "-grid_parent", "%s.nii" % vol_file,
 			             "-out_niml", out,
 			             "-overwrite"
@@ -270,8 +325,6 @@ def design_prep( paths, conf ):
 		run_times = np.array( run_times )
 		run_conds = np.array( run_conds )
 
-		run_times -= conf[ "exp" ][ "pre_len_s" ]
-
 		ok = np.logical_and( run_times >= 0,
 		                     run_times < conf[ "exp" ][ "run_len_s" ]
 		                   )
@@ -291,41 +344,33 @@ def design_prep( paths, conf ):
 	_ = [ run_file.close() for run_file in run_files ]
 
 
-	# motion estimates as baseline
-	mot_est = np.load( paths[ "summ" ][ "mot_est_file" ] )
+	# POLYNOMIALS
+	n_tot_vol = conf[ "exp" ][ "run_full_len_s" ] / conf[ "acq" ][ "tr_s" ]
 
-	# change the degrees to radians, so as to not have tiny numbers going into
-	# the GLM
-	mot_est[ 1, :, :, : ] = np.degrees( mot_est[ 1, :, :, : ] )
+	n_pre_vol = conf[ "exp" ][ "pre_len_s" ] / conf[ "acq" ][ "tr_s" ]
+	n_post_vol = conf[ "exp" ][ "post_len_s" ] / conf[ "acq" ][ "tr_s" ]
 
-	# mot est is ( type, run, vol, axis )
-	pre_len_vol = int( conf[ "exp" ][ "pre_len_s" ] / conf[ "acq" ][ "tr_s" ] )
-	mot_est = mot_est[ :, :, pre_len_vol:, : ]
+	n_valid_vol = n_tot_vol - n_pre_vol - n_post_vol
 
-	n_vol_per_run = ( conf[ "exp" ][ "run_len_s" ] /
-	                  conf[ "acq" ][ "tr_s" ]
-	                )
+	run_trends = fmri_tools.utils.legendre_poly( conf[ "ana" ][ "poly_ord" ],
+	                                             int( n_valid_vol ),
+	                                             pre_n = int( n_pre_vol ),
+	                                             post_n = int( n_post_vol )
+	                                           )
 
-	n_exp_vol = n_vol_per_run * conf[ "subj" ][ "n_runs" ]
+	bl_trends = np.zeros( ( run_trends.shape[ 0 ] * conf[ "subj" ][ "n_runs" ],
+	                        run_trends.shape[ 1 ] * conf[ "subj" ][ "n_runs" ]
+	                      )
+	                    )
 
-	mot_mat = np.empty( ( n_exp_vol, 6 ) )
-	mot_mat.fill( np.NAN )
+	for i_run in xrange( conf[ "subj" ][ "n_runs" ] ):
 
-	for ( i_run, run_num ) in enumerate( conf[ "subj" ][ "run_st_mot_order" ] ):
+		i_row_start = i_run * run_trends.shape[ 0 ]
+		i_row_end = i_row_start + run_trends.shape[ 0 ]
 
-		i_ax = 0
+		i_col_start = i_run * run_trends.shape[ 1 ]
+		i_col_end = i_col_start + run_trends.shape[ 1 ]
 
-		i_vol_range = np.arange( i_run * n_vol_per_run,
-		                         i_run * n_vol_per_run + n_vol_per_run
-		                       ).astype( "int" )
+		bl_trends[ i_row_start:i_row_end, i_col_start:i_col_end ] = run_trends
 
-		for i_type in xrange( 2 ):
-			for i_axis in xrange( 3 ):
-
-				mot_mat[ i_vol_range, i_ax ] = mot_est[ i_type, run_num - 1, :, i_axis ]
-
-				i_ax += 1
-
-	assert( np.all( np.logical_not( np.isnan( mot_mat ) ) ) )
-
-	np.savetxt( paths[ "ana" ][ "mot_est" ], mot_mat )
+	np.savetxt( paths[ "ana" ][ "bl_poly" ], bl_trends )
