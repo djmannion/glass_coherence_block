@@ -215,7 +215,7 @@ def beta_to_psc( paths, conf ):
 	"""Convert the GLM beta weights into units of percent signal change"""
 
 	# these are the indices into the beta files for the data we want to convert
-	beta_briks = "48,49,50,51"
+	beta_briks = "0,1,2,3"
 
 	start_dir = os.getcwd()
 
@@ -238,6 +238,7 @@ def beta_to_psc( paths, conf ):
 		bl_cmd = [ "3dSynthesize",
 		           "-cbucket", beta_file,
 		           "-matrix", mat_file,
+		           "-cenfill", "none",
 		           "-select", "baseline",
 		           "-prefix", bltc_file,
 		           "-overwrite"
@@ -364,13 +365,17 @@ def raw_adj( paths, conf ):
 	for hemi in [ "lh", "rh" ]:
 
 		# create a raw input dataset, concatentated across all runs
-		surf_files = [ "%s_%s.niml.dset" % ( surf_file, hemi )
+
+		brick_range = "[3..$]"
+
+		surf_files = [ "%s_%s.niml.dset%s" % ( surf_file, hemi, brick_range )
 		               for surf_file in paths[ "func" ][ "surf_files" ]
 		             ]
 
 		raw_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "raw" ], hemi )
 
 		cat_cmd = [ "3dTcat",
+		            "-overwrite",
 		            "-prefix", raw_file
 		          ]
 
@@ -414,6 +419,7 @@ def raw_adj( paths, conf ):
 		bl_cmd = [ "3dSynthesize",
 		           "-cbucket", beta_file,
 		           "-matrix", mat_file,
+		           "-cenfill", "none",
 		           "-select", "allfunc",
 		           "-prefix", pred_adj_file,
 		           "-overwrite"
