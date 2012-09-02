@@ -17,22 +17,22 @@ def convert( paths, conf ):
 	"""Converts the functionals and fieldmaps from dicom to nifti"""
 
 	# aggregate the dicom directories
-	raw_dirs = ( paths[ "func" ][ "raw_dirs" ] +
+	raw_dirs = [ paths[ "func" ][ "raw_dirs" ] +
 	             paths[ "fmap" ][ "raw_mag_dirs" ] +
 	             paths[ "fmap" ][ "raw_ph_dirs" ]
-	           )
+	           ]
 
 	# aggregate the output directories
-	nii_dirs = ( paths[ "func" ][ "run_dirs" ] +
+	nii_dirs = [ paths[ "func" ][ "run_dirs" ] +
 	             paths[ "fmap" ][ "fmap_dirs" ] +
 	             paths[ "fmap" ][ "fmap_dirs" ]
-	           )
+	           ]
 
 	# aggregate the images paths
-	img_paths = ( paths[ "func" ][ "orig_files" ] +
+	img_paths = [ paths[ "func" ][ "orig_files" ] +
 	              paths[ "fmap" ][ "mag_files" ] +
 	              paths[ "fmap" ][ "ph_files" ]
-	            )
+	            ]
 
 	# pull out the filenames
 	img_names = [ os.path.split( img_path )[ 1 ]
@@ -71,9 +71,12 @@ def run_masks( paths, conf ):
 
 	for i_run in xrange( conf[ "subj" ][ "n_runs" ] ):
 
+		# the run's original file
 		base_file = "%s.nii" % paths[ "func" ][ "orig_files" ][ i_run ]
+		# output mask file
 		mask_file = "%s.nii" % paths[ "func" ][ "mask_files" ][ i_run ]
 
+		# the 'SI' flag gets rid of the cerebellum
 		mask_cmd = [ "3dAutomask",
 		             "-prefix", mask_file,
 		             "-SI", "%.3f" % conf[ "subj" ][ "mask_z_mm" ],
@@ -86,6 +89,9 @@ def run_masks( paths, conf ):
 		                          log_path = paths[ "summ" ][ "log_file" ]
 		                        )
 
+		# to compute the variance, we use '3dTstat' to first compute the standard
+		# deviation. we don't care about this though, so we just save it as a temp
+		# file so it is deleted after
 		std_tmp = tempfile.NamedTemporaryFile( suffix = ".nii" )
 
 		std_cmd = [ "3dTstat",
@@ -102,6 +108,8 @@ def run_masks( paths, conf ):
 
 		ivar_file = "%s.nii" % paths[ "func" ][ "ivar_files" ][ i_run ]
 
+		# compute the inverse variance, with implicit masking
+		# i got this trick from an AFNI forum post by Bob Cox
 		ivar_cmd = [ "3dcalc",
 		             "-a", std_tmp.name,
 		             "-b", mask_file,
@@ -119,6 +127,8 @@ def run_masks( paths, conf ):
 def motion_correct( paths, conf ):
 	"""Perform motion correction"""
 
+	# the index to the run that will be the 'base', to be corrected to
+	# it is stored in one-based, hence the minus 1 to get to an index
 	i_mc_base = conf[ "subj" ][ "mot_base" ] - 1
 
 	mc_base = "%s.nii[0]" % paths[ "func" ][ "orig_files" ][ i_mc_base ]
@@ -131,6 +141,8 @@ def motion_correct( paths, conf ):
 		corr_file = paths[ "func" ][ "corr_files" ][ i_run ]
 		ivar_file = paths[ "func" ][ "ivar_files" ][ i_run ]
 
+		# because we want to aggregate the motion correction files over the whole
+		# session, we only store the individual run correction temporarily
 		mc_txt = tempfile.NamedTemporaryFile()
 
 		mc_cmd = [ "3dvolreg",
@@ -141,7 +153,7 @@ def motion_correct( paths, conf ):
 		           "-weight", "%s.nii[0]" % ivar_file,
 		           "-base", mc_base,
 		           "-zpad", "5",
-		           "-heptic",
+		           "-heptic",  # fourier can cause ringing artefacts
 		           "%s.nii" % orig_file
 		         ]
 
@@ -150,10 +162,10 @@ def motion_correct( paths, conf ):
 		                          log_path = paths[ "summ" ][ "log_file" ]
 		                        )
 
-		run_mc_params = np.loadtxt( mc_txt.name )
+		# deal with the motion estimates
+		mc_params.append( np.loadtxt( mc_txt.name ) )
 
-		mc_params.append( run_mc_params )
-
+	# concatenate the motion estimates over time
 	mc_params = np.vstack( mc_params )
 
 	np.savetxt( paths[ "summ" ][ "mot_est_file" ], mc_params )
@@ -183,11 +195,11 @@ def unwarp( paths, conf ):
 	of all the unwarped functional images.
 	"""
 
-	# combine the experiment and localiser functional info
 	func_fmap = paths[ "fmap" ][ "fmap_files" ][ 0 ]
 
+	# motion-corrected images (input)
 	func_corr = paths[ "func" ][ "corr_files" ]
-
+	# unwarped images (output)
 	func_uw = paths[ "func" ][ "uw_files" ]
 
 	for i_run in xrange( len( func_corr )  ):
@@ -219,19 +231,22 @@ def surf_reg( paths, conf ):
 	base_anat = paths[ "reg" ][ "anat" ]
 	reg_anat = paths[ "reg" ][ "reg_anat" ]
 
+	# use the mean to represent the functional images
 	base_func = "%s.nii" % paths[ "summ" ][ "mean_file" ]
 
 	coreg_cmd = [ "3dAllineate",
 	              "-base", base_func,
 	              "-source", base_anat,
 	              "-prefix", reg_anat,
-	              "-cost", "nmi",
+	              "-cost", "nmi",  # normalised mutual info cost function
 	              "-master", "SOURCE",
-	              "-warp", "shift_rotate",
-	              "-onepass",
+	              "-warp", "shift_rotate",  # only rigid transforms
+	              "-onepass",  # false minima if it is allowed to wander
 	              "-verb"
 	            ]
 
+	# pass the algorithm three translation parameters to get it close to the
+	# reference anatomy
 	for ( i_nudge, nudge_val ) in enumerate( conf[ "subj" ][ "nudge_vals" ] ):
 
 		coreg_cmd.extend( [ "-parini",
@@ -249,23 +264,24 @@ def surf_reg( paths, conf ):
 def vol_to_surf( paths, conf ):
 	"""Converts the functional volume-based images to SUMA surfaces."""
 
+	# this puts some output in the working directory, so change to where we want
+	# to save stuff
 	start_dir = os.getcwd()
 
+	# images to project (unwarped)
 	vol_files = paths[ "func" ][ "uw_files" ]
-
+	# surface files to write
 	surf_files = paths[ "func" ][ "surf_files" ]
 
 	for ( vol_file, surf_file ) in zip( vol_files, surf_files ):
 
-		file_dir = os.path.split( vol_file )[ 0 ]
+		( file_dir, _ ) = os.path.split( vol_file )
 
 		os.chdir( file_dir )
 
 		for hemi in [ "lh", "rh" ]:
 
-			out = "%s_%s.niml.dset" % ( surf_file,
-			                            hemi
-			                          )
+			out = "%s_%s.niml.dset" % ( surf_file, hemi )
 
 			surf_cmd = [ "3dVol2Surf",
 			             "-spec", "%s%s.spec" % ( paths[ "reg" ][ "spec" ], hemi ),
@@ -291,9 +307,12 @@ def vol_to_surf( paths, conf ):
 def design_prep( paths, conf ):
 	"""Prepares the designs for GLM analysis"""
 
+	# number of conditions corresponds to the number of coherence levels (we dont
+	# count fixation as a condition)
 	n_cond = len( conf[ "stim" ][ "coh_levels" ] )
 
-	# exp
+	# we want to write out a time file for each condition, where every row is a
+	# run and the columns are the block onset times
 	run_files = [ open( "%s%d.txt" % ( paths[ "ana" ][ "time_files" ],
 	                                   cond_num
 	                                 ),
