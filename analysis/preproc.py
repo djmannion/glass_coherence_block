@@ -12,6 +12,8 @@ import numpy as np
 
 import fmri_tools.preproc, fmri_tools.utils
 
+import glass_coherence_block.exp.run
+
 
 def convert( paths, conf ):
 	"""Converts the functionals and fieldmaps from dicom to nifti"""
@@ -273,6 +275,11 @@ def vol_to_surf( paths, conf ):
 	# surface files to write
 	surf_files = paths[ "func" ][ "surf_files" ]
 
+	# number of increments to divide the surface interval
+	f_steps = 15
+	# how to deal with multiple nodes lying on a given voxel
+	f_index = "nodes"
+
 	for ( vol_file, surf_file ) in zip( vol_files, surf_files ):
 
 		( file_dir, _ ) = os.path.split( vol_file )
@@ -281,18 +288,16 @@ def vol_to_surf( paths, conf ):
 
 		for hemi in [ "lh", "rh" ]:
 
-			out = "%s_%s.niml.dset" % ( surf_file, hemi )
-
 			surf_cmd = [ "3dVol2Surf",
 			             "-spec", "%s%s.spec" % ( paths[ "reg" ][ "spec" ], hemi ),
 			             "-surf_A", "smoothwm",
 			             "-surf_B", "pial",
 			             "-map_func", "ave",
-			             "-f_steps", "15",
-			             "-f_index", "nodes",
+			             "-f_steps", "%d" % f_steps,
+			             "-f_index", f_index,
 			             "-sv", paths[ "reg" ][ "reg_anat" ],
 			             "-grid_parent", "%s.nii" % vol_file,
-			             "-out_niml", out,
+			             "-out_niml", "%s_%s.niml.dset" % ( surf_file, hemi ),
 			             "-overwrite"
 			           ]
 
@@ -306,6 +311,10 @@ def vol_to_surf( paths, conf ):
 
 def design_prep( paths, conf ):
 	"""Prepares the designs for GLM analysis"""
+
+	# load a dictionary that contains which index in the run sequence refers to
+	# what aspect of the experiment
+	seq_info = glass_coherence_block.exp.run.get_seq_ind()
 
 	# number of conditions corresponds to the number of coherence levels (we dont
 	# count fixation as a condition)
@@ -326,59 +335,92 @@ def design_prep( paths, conf ):
 		run_times = []
 		run_conds = []
 
+		# load the sequence info for this run, which is output by the experiment
+		# script
 		run_seq = np.load( "%s%d.npy" % ( paths[ "log" ][ "seq_base" ], i_run + 1 ) )
 
-		for i_evt in xrange( run_seq.shape[ 0 ] ):
+		( n_evt, n_params ) = run_seq.shape
 
-			is_transition = ( run_seq[ i_evt, 1 ] != run_seq[ i_evt - 1, 1 ] )
+		# loop through each event in the sequence
+		for i_evt in xrange( n_evt ):
 
+			# pull out which block this and the previous event comes from
+			curr_block_num = run_seq[ i_evt, seq_info[ "block_num" ] ]
+			prev_block_num = run_seq[ i_evt - 1, seq_info[ "block_num" ] ]
+
+			# it is a 'transition' event if it has a different block number
+			is_transition = curr_block_num != prev_block_num
+
+			# we only care about the transition blocks
 			if is_transition:
 
-				start_time_s = run_seq[ i_evt, 0 ]
+				# pull out the onset time
+				start_time_s = run_seq[ i_evt, seq_info[ "time_s" ] ]
 
-				cond = int( run_seq[ i_evt, 2 ] )
+				# and the condition number, cast to an int so it can be used as an
+				# index
+				cond = int( run_seq[ i_evt, seq_info[ "block_type" ] ] )
 
+				# store the start time and condition type in the relevent list
 				run_times.append( start_time_s )
 				run_conds.append( cond )
 
+		# finished iterating through the events, now convert from lists to arrays
 		run_times = np.array( run_times )
 		run_conds = np.array( run_conds )
 
-		ok = np.logical_and( run_times >= 0,
-		                     run_times < conf[ "exp" ][ "run_len_s" ]
-		                   )
+		# test for valid events as those that lie within the run duration
+		valid_evts = np.logical_and( run_times >= 0,
+		                             run_times < conf[ "exp" ][ "run_len_s" ]
+		                           )
 
-		# exclude fixation blocks
-		ok = np.logical_and( ok, run_conds > 0 )
+		# and don't include fixation
+		valid_evts = np.logical_and( valid_evts, run_conds > 0 )
 
-		run_times = run_times[ ok ]
-		run_conds = run_conds[ ok ]
+		# restrict our data to the valid events
+		run_times = run_times[ valid_evts ]
+		run_conds = run_conds[ valid_evts ]
 
-		for ( i_evt, run_time ) in enumerate( run_times ):
+		for ( evt_time, evt_cond ) in zip( run_times, run_conds ):
 
-			run_files[ run_conds[ i_evt ] - 1 ].write( "%.5f\t" % run_time )
+			# the conditions are one-based
+			i_evt_file = evt_cond - 1
 
+			# write the onset time
+			run_files[ i_evt_file ].write( "%.5f\t" % evt_time )
+
+		# finished this run, so add a newline to every condition's file
 		_ = [ run_file.write( "\n" ) for run_file in run_files ]
 
+	# finished, so close all the open files
 	_ = [ run_file.close() for run_file in run_files ]
 
 
 	# POLYNOMIALS
+	# ---
+
+	# total number of volumes
 	n_tot_vol = conf[ "exp" ][ "run_full_len_s" ] / conf[ "acq" ][ "tr_s" ]
 
+	# number of volumes to reject at the start and end
 	n_pre_vol = conf[ "exp" ][ "pre_len_s" ] / conf[ "acq" ][ "tr_s" ]
 	n_post_vol = conf[ "exp" ][ "post_len_s" ] / conf[ "acq" ][ "tr_s" ]
 
+	# number of volumes left after rejection
 	n_valid_vol = n_tot_vol - n_pre_vol - n_post_vol
 
+	# compute the polynomial timecourses
 	run_trends = fmri_tools.utils.legendre_poly( conf[ "ana" ][ "poly_ord" ],
 	                                             int( n_valid_vol ),
 	                                             pre_n = int( n_pre_vol ),
 	                                             post_n = int( n_post_vol )
 	                                           )
 
-	bl_trends = np.zeros( ( run_trends.shape[ 0 ] * conf[ "subj" ][ "n_runs" ],
-	                        run_trends.shape[ 1 ] * conf[ "subj" ][ "n_runs" ]
+	assert( run_trends.shape[ 0 ] == n_tot_vol )
+
+	# need to have a set of trends for each run, zeroed elsewhere
+	bl_trends = np.zeros( ( n_tot_vol  * conf[ "subj" ][ "n_runs" ],
+	                        conf[ "ana" ][ "poly_ord" ] * conf[ "subj" ][ "n_runs" ]
 	                      )
 	                    )
 
