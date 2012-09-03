@@ -41,10 +41,6 @@ def _get_func_paths( conf, paths ):
 	                               for orig_file in func_paths[ "orig_files" ]
 	                             ]
 
-	func_paths[ "trim_files" ] = [ orig_file.replace( "orig", "trim" )
-	                               for orig_file in func_paths[ "orig_files" ]
-	                             ]
-
 	func_paths[ "surf_files" ] = [ orig_file.replace( "orig", "surf" )
 	                               for orig_file in func_paths[ "orig_files" ]
 	                             ]
