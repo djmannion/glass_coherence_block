@@ -6,15 +6,10 @@ block design fMRI experiment.
 from __future__ import division
 
 import os, os.path
-import tempfile
 
 import numpy as np
-import scipy.stats
 
 import fmri_tools.utils
-
-import glass_coherence_block.config
-import glass_coherence_block.analysis.paths
 
 
 def glm( paths, conf ):
