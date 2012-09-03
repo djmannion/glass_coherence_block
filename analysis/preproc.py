@@ -192,7 +192,7 @@ def fieldmaps( paths, conf ):
 		                                )
 
 
-def unwarp( paths, conf ):
+def undistort( paths, conf ):
 	"""Uses the fieldmaps to unwarp the functional images and create a mean image
 	of all the unwarped functional images.
 	"""

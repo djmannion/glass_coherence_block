@@ -7,9 +7,6 @@ import os
 import argparse
 
 import glass_coherence_block.config, glass_coherence_block.analysis.paths
-import glass_coherence_block.analysis.preproc
-import glass_coherence_block.analysis.analysis
-import glass_coherence_block.analysis.figures
 
 def main():
 	"""Execution function"""
@@ -19,10 +16,8 @@ def main():
 
 	eg = """
 	Steps:
-	  rois : aggregates the ROIs across subjects.
+	  roi_mean : aggregates the ROIs across subjects.
 	  stat : compute the trends and permutations for stats.
-	  plot_roi_psc : plot the PSC for each ROI across conditions.
-	  plot_trends : plot the trend coefficients.
 	
 	---N.B.---
 	
@@ -45,10 +40,8 @@ def main():
 	                                  formatter_class = fmt,
 	                                )
 
-	steps = ( "rois",
-	          "plot_roi_psc",
-	          "stat",
-	          "plot_trends"
+	steps = ( "roi_mean",
+	          "stat"
 	        )
 
 	parser.add_argument( "step",
@@ -63,16 +56,10 @@ def main():
 	paths = glass_coherence_block.analysis.paths.get_group_paths( conf )
 
 	if args.step == "rois":
-		glass_coherence_block.analysis.analysis.group_rois( paths, conf )
-
-	elif args.step == "plot_roi_psc":
-		glass_coherence_block.analysis.figures.plot_roi_psc( paths, conf )
+		glass_coherence_block.analysis.group_analysis.roi_mean( paths, conf )
 
 	elif args.step == "stat":
-		glass_coherence_block.analysis.analysis.group_stat( paths, conf )
-
-	elif args.step == "plot_trends":
-		glass_coherence_block.analysis.figures.plot_trends( paths, conf )
+		glass_coherence_block.analysis.group_analysis.roi_stat( paths, conf )
 
 	else:
 		print "Not completed"

@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-"""Runs a processing step for a subject in the Glass coherence block fMRI
+"""Runs a pre-processing step for a subject in the Glass coherence block fMRI
 experiment"""
 
 import os
@@ -8,36 +8,27 @@ import argparse
 
 import glass_coherence_block.config, glass_coherence_block.analysis.paths
 import glass_coherence_block.analysis.preproc
-import glass_coherence_block.analysis.analysis
-import glass_coherence_block.analysis.figures
 
 def main():
 	"""Execution function"""
 
-	desc = """Runs a processing step for a subject in the Glass coherence block
+	desc = """Runs a pre-processing step for a subject in the Glass coherence block
 	          fMRI experiment"""
 
 	eg = """
 	Example usage:
 	  run motion correction on subject s1000:
-	    glass_coherence_proc s1000 correct
+	    glass_coherence_block_preproc s1000 correct
 	
 	Steps:
 	  convert : converts the scanner DICOM images to NIFTIs.
-	  correct : performs slice-timing and motion correction.
+	  run_masks : creates masks and weighting images for each run.
+	  correct : performs motion correction.
 	  fieldmap : prepares the fieldmaps.
 	  undistort : applies distortion correction to the functional data.
-	  trim : remove portions of each run's timecourse.
 	  surf_reg : register to the canonical anatomy.
 	  vol_to_surf : project the volumes onto the cortical surface.
 	  design_prep : prepares design specs for future GLM analysis.
-	  glm : executes the GLM analysis.
-	  loc_mask : generates a localising mask from the GLM.
-	  beta_to_psc : converts the fitted beta values to percent signal change.
-	  roi_xtr : extracts the ROI statistics.
-	  raw_adj : computes the raw and predicted timecourses, adjusted.
-	  roi_tc : compiles raw and predicted timecourses for each ROI.
-	  plot_tc : plot the raw and predicted timecourses for each run and ROI.
 	
 	---N.B.---
 	
@@ -72,13 +63,6 @@ def main():
 	                  "surf_reg",
 	                  "vol_to_surf",
 	                  "design_prep",
-	                  "glm",
-	                  "loc_mask",
-	                  "beta_to_psc",
-	                  "roi_xtr",
-	                  "raw_adj",
-	                  "roi_tc",
-	                  "plot_tc"
 	                )
 
 	parser.add_argument( "preproc_step",
@@ -109,7 +93,7 @@ def main():
 		glass_coherence_block.analysis.preproc.fieldmaps( paths, conf )
 
 	elif args.preproc_step == "undistort":
-		glass_coherence_block.analysis.preproc.unwarp( paths, conf )
+		glass_coherence_block.analysis.preproc.undistort( paths, conf )
 
 	elif args.preproc_step == "surf_reg":
 		glass_coherence_block.analysis.preproc.surf_reg( paths, conf )
@@ -119,27 +103,6 @@ def main():
 
 	elif args.preproc_step == "design_prep":
 		glass_coherence_block.analysis.preproc.design_prep( paths, conf )
-
-	elif args.preproc_step == "glm":
-		glass_coherence_block.analysis.analysis.glm( paths, conf )
-
-	elif args.preproc_step == "loc_mask":
-		glass_coherence_block.analysis.analysis.loc_mask( paths, conf )
-
-	elif args.preproc_step == "beta_to_psc":
-		glass_coherence_block.analysis.analysis.beta_to_psc( paths, conf )
-
-	elif args.preproc_step == "roi_xtr":
-		glass_coherence_block.analysis.analysis.roi_xtr( paths, conf )
-
-	elif args.preproc_step == "raw_adj":
-		glass_coherence_block.analysis.analysis.raw_adj( paths, conf )
-
-	elif args.preproc_step == "roi_tc":
-		glass_coherence_block.analysis.analysis.roi_tc( paths, conf )
-
-	elif args.preproc_step == "plot_tc":
-		glass_coherence_block.analysis.figures.plot_subj_tc( paths, conf )
 
 	else:
 		print "Not completed"
