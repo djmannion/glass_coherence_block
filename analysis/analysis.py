@@ -36,29 +36,28 @@ def glm( paths, conf ):
 
 	stim_labels = [ "%.2f" % coh for coh in conf[ "stim" ][ "coh_levels" ] ]
 
-	trend_coef = [ [ -3, -1, +1, +3 ],  # linear
-	               [ +1, -1, -1, +1 ],  # quadratic
-	               [ -1, +3, -3, +1 ],  # cubic
-	               [ +1, +1, +1, +1 ]   # mean
-	             ]
+	# contrast coefficients; each column corresponds to a condition
+	con_coef = [ [ +1, +1, +1, +1 ]
+	           ]
 
-	trend_lbl = [ "lin", "quad", "cub", "mean" ]
+	con_lbl = [ "stim" ]
 
-	trend_con = [ "SYM: " +
-	              " ".join( [ "%d*%s" % con
-	                          for con in zip( t_coef, stim_labels )
-	                        ]
-	                      )
-	              for t_coef in trend_coef
-	            ]
+	# put the contrast into an AFNI-aware format
+	con_str = [ "SYM: " +
+	            " ".join( [ "%d*%s" % con
+	                        for con in zip( coef, stim_labels )
+	                      ]
+	                    )
+	            for coef in con_coef
+	          ]
 
 	# minus one because the range is inclusive
 	censor_vols = conf[ "exp" ][ "pre_len_s" ] / conf[ "acq" ][ "tr_s" ] - 1
 
+	# in AFNI-aware format; (runs):start-end
 	censor_str = "*:0-%d" % censor_vols
 
 	for hemi in [ "lh", "rh" ]:
-
 
 		glm_cmd = [ "3dDeconvolve",
 		            "-input"
@@ -70,7 +69,7 @@ def glm( paths, conf ):
 		              )
 
 		glm_cmd.extend( [ "-force_TR", "%.3f" % conf[ "acq" ][ "tr_s" ],
-		                  "-polort", "-1",
+		                  "-polort", "-1",  # we pass our own below
 		                  "-ortvec", paths[ "ana" ][ "bl_poly" ], "poly",
 		                  "-ortvec", paths[ "summ" ][ "mot_est_file" ], "mot",
 		                  "-local_times",
@@ -78,7 +77,7 @@ def glm( paths, conf ):
 		                  "-xjpeg", "exp_design.png",
 		                  "-x1D", "exp_design",
 		                  "-overwrite",
-		                  "-x1D_stop",
+		                  "-x1D_stop",  # want to use REML, so don't bother running
 		                  "-num_stimts", "%d" % n_cond
 		                ]
 		              )
@@ -98,19 +97,21 @@ def glm( paths, conf ):
 			                ]
 			              )
 
-		for i_con in xrange( len( trend_con ) ):
+		# loop through all our contrasts
+		for i_con in xrange( len( con_coef ) ):
 
 			glm_cmd.extend( [ "-gltsym",
-			                  trend_con[ i_con ]
+			                  con_str[ i_con ]
 			                ]
 			              )
 
 			glm_cmd.extend( [ "-glt_label",
 			                  "%d" % ( i_con + 1 ),
-			                  trend_lbl[ i_con ]
+			                  con_lbl[ i_con ]
 			                ]
 			              )
 
+		# run this first GLM
 		fmri_tools.utils.run_cmd( glm_cmd,
 		                          env = fmri_tools.utils.get_env(),
 		                          log_path = paths[ "summ" ][ "log_file" ]
@@ -137,6 +138,7 @@ def glm( paths, conf ):
 		                         )
 		               )
 
+		# run the proper GLM
 		fmri_tools.utils.run_cmd( reml_cmd,
 		                          env = fmri_tools.utils.get_env(),
 		                          log_path = paths[ "summ" ][ "log_file" ]
@@ -153,6 +155,7 @@ def loc_mask( paths, conf ):
 	os.chdir( paths[ "ana" ][ "base_dir" ] )
 
 	# brik in the glm file that contains the localiser statistic
+	# this is verified below
 	loc_stat_brik = "16"
 
 	for hemi in [ "lh", "rh" ]:
@@ -163,13 +166,14 @@ def loc_mask( paths, conf ):
 		# check the localiser brik is as expected
 		assert( fmri_tools.utils.get_dset_label( glm_file ) == [ "mean#0_Tstat" ] )
 
+		# to write
 		loc_fdr_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "loc_fdr" ], hemi )
 
 		# convert the statistics for the localiser to a q (FDR) value
 		fdr_cmd = [ "3dFDR",
 		            "-input", glm_file,
 		            "-prefix", loc_fdr_file,
-		            "-qval",
+		            "-qval",  # specify that we want q, not z
 		            "-float",
 		            "-overwrite"
 		          ]
@@ -183,6 +187,8 @@ def loc_mask( paths, conf ):
 
 		q_thresh = conf[ "ana" ][ "loc_q" ]
 
+		# create a localiser mask as nodes that both have a q that is below
+		# threshold and have positive beta weights
 		mask_cmd = [ "3dcalc",
 		             "-a", loc_fdr_file,
 		             "-b", glm_file,
@@ -238,7 +244,7 @@ def beta_to_psc( paths, conf ):
 		bl_cmd = [ "3dSynthesize",
 		           "-cbucket", beta_file,
 		           "-matrix", mat_file,
-		           "-cenfill", "none",
+		           "-cenfill", "none",  # this is important
 		           "-select", "baseline",
 		           "-prefix", bltc_file,
 		           "-overwrite"
@@ -330,7 +336,7 @@ def roi_xtr( paths, conf ):
 			                                  hemi
 			                                )
 
-			# 3dmaskdump won't overwrite, so need to manually remove any prior data
+			# 3dmaskdump won't overwrite, so need to manually remove any prior file
 			if os.path.exists( roi_psc_file ):
 				os.remove( roi_psc_file )
 
@@ -362,12 +368,14 @@ def raw_adj( paths, conf ):
 
 	os.chdir( paths[ "ana" ][ "base_dir" ] )
 
+	# since we use censoring in the GLM rather than trimming the data, we need to
+	# specify a volume range here
+	censor_vols = conf[ "exp" ][ "pre_len_s" ] / conf[ "acq" ][ "tr_s" ]
+	brick_range = "[%d..$]" % censor_vols
+
 	for hemi in [ "lh", "rh" ]:
 
 		# create a raw input dataset, concatentated across all runs
-
-		brick_range = "[3..$]"
-
 		surf_files = [ "%s_%s.niml.dset%s" % ( surf_file, hemi, brick_range )
 		               for surf_file in paths[ "func" ][ "surf_files" ]
 		             ]
@@ -419,7 +427,7 @@ def raw_adj( paths, conf ):
 		bl_cmd = [ "3dSynthesize",
 		           "-cbucket", beta_file,
 		           "-matrix", mat_file,
-		           "-cenfill", "none",
+		           "-cenfill", "none",  # important to match the censored data
 		           "-select", "allfunc",
 		           "-prefix", pred_adj_file,
 		           "-overwrite"
@@ -437,26 +445,19 @@ def raw_adj( paths, conf ):
 
 		pad_node = "%d" % conf[ "subj" ][ "node_k" ][ hemi ]
 
-		fmri_tools.utils.sparse_to_full( raw_file,
-		                                 full_raw_file,
-		                                 pad_node = pad_node,
-		                                 log_path = paths[ "summ" ][ "log_file" ],
-		                                 overwrite = True
-		                               )
+		pad_files = [ [ raw_file, full_raw_file ],
+		              [ raw_adj_file, full_raw_adj_file ],
+		              [ pred_adj_file, full_pred_adj_file ]
+		            ]
 
-		fmri_tools.utils.sparse_to_full( raw_adj_file,
-		                                 full_raw_adj_file,
-		                                 pad_node = pad_node,
-		                                 log_path = paths[ "summ" ][ "log_file" ],
-		                                 overwrite = True
-		                               )
+		for ( sparse_file, full_file ) in pad_files:
 
-		fmri_tools.utils.sparse_to_full( pred_adj_file,
-		                                 full_pred_adj_file,
-		                                 pad_node = pad_node,
-		                                 log_path = paths[ "summ" ][ "log_file" ],
-		                                 overwrite = True
-		                               )
+			fmri_tools.utils.sparse_to_full( sparse_file,
+			                                 full_file,
+			                                 pad_node = pad_node,
+			                                 log_path = paths[ "summ" ][ "log_file" ],
+			                                 overwrite = True
+			                               )
 
 	os.chdir( start_dir )
 
@@ -522,161 +523,3 @@ def roi_tc( paths, conf ):
 				                          env = fmri_tools.utils.get_env(),
 				                          log_path = paths[ "summ" ][ "log_file" ]
 				                        )
-
-
-
-def group_rois( paths, conf ):
-	"""Group together the ROIs for each subject"""
-
-	roi_names = [ roi_info[ 0 ] for roi_info in conf[ "ana" ][ "rois" ] ]
-
-	for roi_name in roi_names:
-
-		roi_path = "%s-%s.txt" % ( paths[ "roi_mean" ], roi_name )
-
-		roi_file = open( roi_path, "w+" )
-
-		for subj_id in conf[ "all_subj" ]:
-
-			subj_conf = glass_coherence_block.config.get_conf( subj_id )
-			subj_paths = glass_coherence_block.analysis.paths.get_subj_paths( subj_conf )
-
-			roi_data = []
-
-			for hemi in [ "lh", "rh" ]:
-
-				roi_psc_file = "%s_%s_%s.txt" % ( subj_paths[ "rois" ][ "psc" ],
-				                                  roi_name,
-				                                  hemi
-				                                )
-
-				roi_hemi_data = np.loadtxt( roi_psc_file )
-
-				roi_data.append( roi_hemi_data )
-
-			roi_data = np.vstack( roi_data )
-
-			# average over nodes
-			roi_data = np.mean( roi_data, axis = 0 )
-
-			# subtract the average over conditions
-			roi_data -= np.mean( roi_data )
-
-			subj_roi_txt = ( subj_id +
-			                 "\t%.18e\t%.18e\t%.18e\t%.18e\n" % tuple( roi_data )
-			               )
-
-			roi_file.write( subj_roi_txt )
-
-		roi_file.close()
-
-
-def group_stat( paths, conf ):
-	"""Permutation test on the ROI values"""
-
-	roi_names = [ roi_info[ 0 ] for roi_info in conf[ "ana" ][ "rois" ] ]
-
-	trends = np.array( [ [ -3, -1, +1, +3 ],  # linear
-	                     [ +1, -1, -1, +1 ],  # quadratic
-	                     [ -1, +3, -3, +1 ]   # cubic
-	                   ]
-	                 )
-
-	n_perm = conf[ "ana" ][ "n_perm" ]
-
-	trend_perm_dist = np.empty( ( n_perm,
-	                              len( roi_names ),
-	                              trends.shape[ 0 ]
-	                            )
-	                          )
-	trend_perm_dist.fill( np.NAN )
-
-	# ( roi, ( mean, p, q, psc@2.5p, psc@97.5p ), ( linear, quad, cub ) )
-	stat = np.empty( ( len( roi_names ), 5, trends.shape[ 0 ] ) )
-
-	roi_info = zip( roi_names, conf[ "ana" ][ "roi_seeds" ] )
-
-	for ( i_roi, ( roi_name, roi_seed ) ) in enumerate( roi_info ):
-
-		roi_path = "%s-%s.txt" % ( paths[ "roi_mean" ], roi_name )
-
-		# first column is subject id
-		roi_data = np.loadtxt( roi_path, usecols = [ 1, 2, 3, 4 ] )
-
-		( n_subj, n_cond ) = roi_data.shape
-
-		np.random.seed( roi_seed )
-
-		perm_data = np.empty( ( n_perm, n_subj, n_cond ) )
-		perm_data.fill( np.NAN )
-
-		for i_perm in xrange( n_perm ):
-
-			perm_data[ i_perm, :, : ] = np.vstack( ( roi_data[ i_subj,
-			                                                   np.random.permutation( n_cond )
-			                                                 ]
-			                                         for i_subj in xrange( n_subj )
-			                                       )
-			                                     )
-
-		for ( i_trend, trend_coef ) in enumerate( trends ):
-
-			# multiply by the trend coefficients, then sum over condition
-			trend_data = np.sum( roi_data * trend_coef, axis = 1 )
-
-			mu = np.mean( trend_data, axis = 0 )
-
-			# sum over conditions
-			coef_dist = np.sum( perm_data * trend_coef, axis  = 2 )
-			# average over subjects
-			coef_dist = np.mean( coef_dist, axis = 1 )
-
-			# use the absolute value to get a two-tailed p
-			trend_p = scipy.stats.percentileofscore( np.abs( coef_dist ),
-			                                         np.abs( mu )
-			                                       )
-
-			trend_p = ( 100 - trend_p ) / 100.0
-
-			stat[ i_roi, 0, i_trend ] = mu
-			stat[ i_roi, 1, i_trend ] = trend_p
-
-			crit_psc = [ scipy.stats.scoreatpercentile( coef_dist,
-			                                            thresh
-			                                          )
-			             for thresh in [ 2.5, 97.5 ]
-			           ]
-
-			stat[ i_roi, 3:5, i_trend ] = crit_psc
-
-			trend_perm_dist[ :, i_roi, i_trend ] = coef_dist
-
-	for i_trend in xrange( trends.shape[ 0 ] ):
-
-		# now we want to convert all the p's into q's, over ROIs
-		p_file = tempfile.NamedTemporaryFile()
-		q_file = tempfile.NamedTemporaryFile()
-
-		np.savetxt( p_file.name, stat[ :, 1, i_trend ] )
-
-		fdr_cmd = [ "3dFDR",
-		            "-input1D", p_file.name,
-		            "-output", q_file.name,
-		            "-qval",
-		            "-new",
-		            "-overwrite"
-		          ]
-
-		fmri_tools.utils.run_cmd( fdr_cmd,
-		                          env = fmri_tools.utils.get_env()
-		                        )
-
-		q_vals = np.loadtxt( q_file.name )
-
-		stat[ :, 2, i_trend ] = q_vals
-
-	for ( i_roi, roi_name ) in enumerate( roi_names ):
-		np.savetxt( "%s-%s.txt" % ( paths[ "roi_stat" ], roi_name ),
-		            stat[ i_roi, :, : ]
-		          )
-
