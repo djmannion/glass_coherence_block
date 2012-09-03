@@ -44,37 +44,23 @@ Edit ``get_subj_conf`` within ``glass_coherence_block/config.py`` and add the ne
 Pre-processing
 --------------
 
-Most of the pre-processing is done with the command ``glass_coherence_block_proc``.
-For help on using this script, run::
-
-    glass_coherence_block_proc --help
-
-Typical usage is::
-
-    glass_coherence_block_proc sXXXX stage
-
-where ``sXXXX`` is the subject ID and ``stage`` is the processing stage (see below).
-
-The stages are as follows:
-
-
 Conversion
 ~~~~~~~~~~
 
 Converts from the raw scanner format to a set of 4D NIFTI files::
 
-    glass_coherence_block_proc sXXXX convert
+    glass_coherence_block_preproc sXXXX convert
 
 After execution, open up each NIFTI file and inspect for image quality and inspect the summary image to see how much motion there was and as a comparison for the next step.
 
-Make note of the most inferior point that includes cortex rather than grey matter, and store in the config file the the subject.
+Make note of the most inferior point that includes cortex (mm) rather than cerebellum, and store in the config file the the subject (``mask_z_mm``).
 
 Masks
 ~~~~~
 
 The motion correction makes use of a mask that weights the algorithm according to the inverse of the variance of each voxel's timecourse, for a given run. Here, we create the masks::
 
-    glass_coherence_block_prox sXXXX masks
+    glass_coherence_block_preproc sXXXX masks
 
 
 Correction
@@ -82,7 +68,7 @@ Correction
 
 Applies a motion correction procedure and creates a summary image::
 
-    glass_coherene_block_proc sXXXX correct
+    glass_coherence_block_preproc sXXXX correct
 
 After execution, open up the session summary image that it creates and view in movie mode. This gives a good sense for how well the motion correction worked. You can also inspect the saved motion correction estimates to see how much movement there was.
 
@@ -92,7 +78,7 @@ Fieldmaps
 
 Prepares the fieldmaps::
 
-    glass_coherence_block_proc sXXXX fieldmap
+    glass_coherence_block_preproc sXXXX fieldmap
 
 
 Unwarping
@@ -129,7 +115,7 @@ Surface projection
 
 The functional images, in their volume space, are now projected onto the cortical surface by averaging between the white matter (smoothed) and pial surfaces::
 
-    glass_coherence_block_proc sXXXX vol_to_surf
+    glass_coherence_block_preproc sXXXX vol_to_surf
 
 
 Design preparation
@@ -137,7 +123,7 @@ Design preparation
 
 We need to extract the stimulus and experiment design information from the log files and output it in a format suitable for reading into AFNI's GLM analysis programs::
 
-    glass_coherence_block_proc sXXXX design_prep
+    glass_coherence_block_preproc sXXXX design_prep
 
 
 Subject-level analysis
