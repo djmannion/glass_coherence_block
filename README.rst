@@ -34,6 +34,8 @@ Prepare the filesystem
     ln -s /labs/olmanlab/DICOM/YYYYMMDD/sXXXX/MR-SEyada mag-raw
     ln -s /labs/olmanlab/DICOM/YYYYMMDD/sXXXX/PH-SEyada ph-raw
 
+5. Copy or symlink the ROI datasets (full) from the subject repository to the ``rois`` directory.
+
 
 Update the experiment information file
 --------------------------------------
@@ -53,14 +55,7 @@ Converts from the raw scanner format to a set of 4D NIFTI files::
 
 After execution, open up each NIFTI file and inspect for image quality and inspect the summary image to see how much motion there was and as a comparison for the next step.
 
-Make note of the most inferior point that includes cortex (mm) rather than cerebellum, and store in the config file the the subject (``mask_z_mm``).
-
-Masks
-~~~~~
-
-The motion correction makes use of a mask that weights the algorithm according to the inverse of the variance of each voxel's timecourse, for a given run. Here, we create the masks::
-
-    glass_coherence_block_preproc sXXXX masks
+Make note of the most inferior point that includes cortex (mm) rather than cerebellum and calculate the distance to the most superior point, and store the result in the config file for the subject (``mask_z_mm``).
 
 
 Correction
@@ -107,7 +102,34 @@ Also, look at the session summary image produced and make sure that all looks go
 Coregistration
 ~~~~~~~~~~~~~~
 
-Need to write up the nudge (no, not nudge - starting parameters to pass to 3dAllineate), 3dAllineate procedure.
+First, put a copy of the reference anatomical (skull-stripped version) into the ``reg`` directory::
+
+  3dcopy /labs/olmanlab/FsAnatomy/sXXXX/SUMA/brainmask.nii sXXXX_anat+orig
+
+Then, make a symlink to the mean functional from within the ``reg`` directory::
+
+  ln -s ../func/sXXXX_glass_coherence_block-mean.nii
+
+Next, fire up ``afni`` from within the ``reg`` directory.
+Set the mean functional as the underlay, and note down the position (in mm) of a landmark in posterior cortex (and the direction indicators).
+Then, set the underlay to the anatomical, and note the position of the same landmark (reverse the sign of any locations that have a different direction indicator to the mean functional).
+Subtract the two vectors elementwise to give a rough estimate of the translation required.
+
+Next, open up the ``Nudge dataset`` plugin with the anatomical as the underlay and the mean functional as the overlay.
+Set the dataset to the anatomical, put in the estimated translation values, and press ``Nudge`` to apply.
+When you're happy that they are reasonably closely aligned, put the translation parameters into the subject's configuration file (``nudge_vals``).
+
+Run::
+
+    glass_coherence_block_preproc sXXXX surf_reg
+
+Then, change the underlay in AFNI to be ``sXXXX_reg_anat+orig`` and confirm that the alignment is perfect.
+
+Finally, set the underlay to be the mean functional and then fire up SUMA::
+
+    suma -spec /labs/olmanlab/FsAnatomy/sXXXX/SUMA/sXXXX_both.spec -sv sXXXX_reg_anat+orig
+
+Press ``t`` inside SUMA to send the surfaces to AFNI, and check that they are well registered to the mean functional.
 
 
 Surface projection
@@ -177,13 +199,6 @@ Compiles raw and predicted timecourses (adjusted) for each ROI::
     glass_coherence_block_proc sXXXX roi_tc
 
 
-Timecourse visualisation
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-Plots the average raw and predicted timecourses (adjusted) for each run (panel) and ROI (figure)::
-
-    glass_coherence_block_proc sXXXX plot_tc
-
 
 Group processing
 ----------------
@@ -202,14 +217,4 @@ Statistics
 Compute the trend coefficients and run permutation tests to get significance values (p and q)::
 
   glass_coherence_block_group stat
-
-
-
-
-
-
-
-
-
-
 

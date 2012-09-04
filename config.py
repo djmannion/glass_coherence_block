@@ -195,7 +195,6 @@ def _get_subj_conf( subj_id = None ):
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
 	          "mot_base" : 7,
-	          "mask_z_mm" : 85,
 	          "nudge_vals" : [ -43, 6, -15 ],
 	          "node_k" : { "lh" : 140847,
 	                       "rh" : 141381
@@ -207,7 +206,8 @@ def _get_subj_conf( subj_id = None ):
 	          "comments" : "",
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
-	          "run_st_mot_order" : ( 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6 ),
+	          "mot_base" : 7,
+	          "nudge_vals" : [ -26, -2, -10 ],
 	          "node_k" : { "lh" : 128434,
 	                       "rh" : 128461
 	                     }
@@ -218,7 +218,8 @@ def _get_subj_conf( subj_id = None ):
 	          "comments" : "",
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
-	          "run_st_mot_order" : ( 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6 ),
+	          "mot_base" : 7,
+	          "nudge_vals" : [ -20, 6, -19 ],
 	          "node_k" : { "lh" : 130318,
 	                       "rh" : 131151
 	                     }
@@ -229,7 +230,8 @@ def _get_subj_conf( subj_id = None ):
 	          "comments" : "",
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
-	          "run_st_mot_order" : ( 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6 ),
+	          "mot_base" : 7,
+	          "nudge_vals" : [ -21, -7, -15 ],
 	          "node_k" : { "lh" : 140427,
 	                       "rh" : 141898
 	                     }
@@ -241,7 +243,8 @@ def _get_subj_conf( subj_id = None ):
 	                       asleep""",
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
-	          "run_st_mot_order" : ( 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6 ),
+	          "mot_base" : 7,
+	          "nudge_vals" : [ -22, 0, -14 ],
 	          "node_k" : { "lh" : 124787,
 	                       "rh" : 127339
 	                     }
@@ -252,7 +255,7 @@ def _get_subj_conf( subj_id = None ):
 	          "comments" : "",
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
-	          "run_st_mot_order" : ( 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6 ),
+	          "mot_base" : 7,
 	          "node_k" : { "lh" : 126078,
 	                       "rh" : 126201
 	                     }

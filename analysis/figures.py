@@ -1,4 +1,4 @@
-"""
+"""Plots figures for the Glass coherence block design fMRI experiment
 """
 
 import matplotlib.pyplot as plt

@@ -33,14 +33,6 @@ def _get_func_paths( conf, paths ):
 	                                              conf[ "exp" ][ "id" ]
 	                                            )
 
-	func_paths[ "mask_files" ] = [ orig_file.replace( "orig", "mask" )
-	                               for orig_file in func_paths[ "orig_files" ]
-	                             ]
-
-	func_paths[ "ivar_files" ] = [ orig_file.replace( "orig", "ivar" )
-	                               for orig_file in func_paths[ "orig_files" ]
-	                             ]
-
 	func_paths[ "surf_files" ] = [ orig_file.replace( "orig", "surf" )
 	                               for orig_file in func_paths[ "orig_files" ]
 	                             ]

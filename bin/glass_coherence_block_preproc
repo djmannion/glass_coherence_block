@@ -22,7 +22,6 @@ def main():
 	
 	Steps:
 	  convert : converts the scanner DICOM images to NIFTIs.
-	  run_masks : creates masks and weighting images for each run.
 	  correct : performs motion correction.
 	  fieldmap : prepares the fieldmaps.
 	  undistort : applies distortion correction to the functional data.
@@ -56,7 +55,6 @@ def main():
 	                   )
 
 	preproc_steps = ( "convert",
-	                  "run_masks",
 	                  "correct",
 	                  "fieldmap",
 	                  "undistort",
@@ -82,9 +80,6 @@ def main():
 
 	if args.preproc_step == "convert":
 		glass_coherence_block.analysis.preproc.convert( paths, conf )
-
-	elif args.preproc_step == "run_masks":
-		glass_coherence_block.analysis.preproc.run_masks( paths, conf )
 
 	elif args.preproc_step == "correct":
 		glass_coherence_block.analysis.preproc.motion_correct( paths, conf )

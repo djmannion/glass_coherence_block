@@ -151,7 +151,7 @@ def loc_mask( paths, conf ):
 
 	# brik in the glm file that contains the localiser statistic
 	# this is verified below
-	loc_stat_brik = "16"
+	loc_stat_brik = "10"
 
 	for hemi in [ "lh", "rh" ]:
 
@@ -159,7 +159,7 @@ def loc_mask( paths, conf ):
 		glm_file += "[%s]" % loc_stat_brik
 
 		# check the localiser brik is as expected
-		assert( fmri_tools.utils.get_dset_label( glm_file ) == [ "mean#0_Tstat" ] )
+		assert( fmri_tools.utils.get_dset_label( glm_file ) == [ "stim#0_Tstat" ] )
 
 		# to write
 		loc_fdr_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "loc_fdr" ], hemi )
