@@ -19,22 +19,22 @@ def convert( paths, conf ):
 	"""Converts the functionals and fieldmaps from dicom to nifti"""
 
 	# aggregate the dicom directories
-	raw_dirs = [ paths[ "func" ][ "raw_dirs" ] +
+	raw_dirs = ( paths[ "func" ][ "raw_dirs" ] +
 	             paths[ "fmap" ][ "raw_mag_dirs" ] +
 	             paths[ "fmap" ][ "raw_ph_dirs" ]
-	           ]
+	           )
 
 	# aggregate the output directories
-	nii_dirs = [ paths[ "func" ][ "run_dirs" ] +
+	nii_dirs = ( paths[ "func" ][ "run_dirs" ] +
 	             paths[ "fmap" ][ "fmap_dirs" ] +
 	             paths[ "fmap" ][ "fmap_dirs" ]
-	           ]
+	           )
 
 	# aggregate the images paths
-	img_paths = [ paths[ "func" ][ "orig_files" ] +
+	img_paths = ( paths[ "func" ][ "orig_files" ] +
 	              paths[ "fmap" ][ "mag_files" ] +
 	              paths[ "fmap" ][ "ph_files" ]
-	            ]
+	            )
 
 	# pull out the filenames
 	img_names = [ os.path.split( img_path )[ 1 ]
@@ -68,64 +68,6 @@ def convert( paths, conf ):
 	                                    )
 
 
-def run_masks( paths, conf ):
-	"""Make a brainmask for each run and compute the inverse variance within."""
-
-	for i_run in xrange( conf[ "subj" ][ "n_runs" ] ):
-
-		# the run's original file
-		base_file = "%s.nii" % paths[ "func" ][ "orig_files" ][ i_run ]
-		# output mask file
-		mask_file = "%s.nii" % paths[ "func" ][ "mask_files" ][ i_run ]
-
-		# the 'SI' flag gets rid of the cerebellum
-		mask_cmd = [ "3dAutomask",
-		             "-prefix", mask_file,
-		             "-SI", "%.3f" % conf[ "subj" ][ "mask_z_mm" ],
-		             "-overwrite",
-		             base_file
-		           ]
-
-		fmri_tools.utils.run_cmd( mask_cmd,
-		                          env = fmri_tools.utils.get_env(),
-		                          log_path = paths[ "summ" ][ "log_file" ]
-		                        )
-
-		# to compute the variance, we use '3dTstat' to first compute the standard
-		# deviation. we don't care about this though, so we just save it as a temp
-		# file so it is deleted after
-		std_tmp = tempfile.NamedTemporaryFile( suffix = ".nii" )
-
-		std_cmd = [ "3dTstat",
-		            "-stdev",
-		            "-overwrite",
-		            "-prefix", std_tmp.name,
-		            base_file
-		          ]
-
-		fmri_tools.utils.run_cmd( std_cmd,
-		                          env = fmri_tools.utils.get_env(),
-		                          log_path = paths[ "summ" ][ "log_file" ]
-		                        )
-
-		ivar_file = "%s.nii" % paths[ "func" ][ "ivar_files" ][ i_run ]
-
-		# compute the inverse variance, with implicit masking
-		# i got this trick from an AFNI forum post by Bob Cox
-		ivar_cmd = [ "3dcalc",
-		             "-a", std_tmp.name,
-		             "-b", mask_file,
-		             "-expr", "b/(a*a)",
-		             "-overwrite",
-		             "-prefix", ivar_file
-		           ]
-
-		fmri_tools.utils.run_cmd( ivar_cmd,
-		                          env = fmri_tools.utils.get_env(),
-		                          log_path = paths[ "summ" ][ "log_file" ]
-		                        )
-
-
 def motion_correct( paths, conf ):
 	"""Perform motion correction"""
 
@@ -141,7 +83,6 @@ def motion_correct( paths, conf ):
 
 		orig_file = paths[ "func" ][ "orig_files" ][ i_run ]
 		corr_file = paths[ "func" ][ "corr_files" ][ i_run ]
-		ivar_file = paths[ "func" ][ "ivar_files" ][ i_run ]
 
 		# because we want to aggregate the motion correction files over the whole
 		# session, we only store the individual run correction temporarily
@@ -152,7 +93,6 @@ def motion_correct( paths, conf ):
 		           "-prefix", "%s.nii" % corr_file,
 		           "-1Dfile", mc_txt.name,
 		           "-overwrite",
-		           "-weight", "%s.nii[0]" % ivar_file,
 		           "-base", mc_base,
 		           "-zpad", "5",
 		           "-heptic",  # fourier can cause ringing artefacts
@@ -248,7 +188,7 @@ def surf_reg( paths, conf ):
 	            ]
 
 	# pass the algorithm three translation parameters to get it close to the
-	# reference anatomy
+	# mean functional
 	for ( i_nudge, nudge_val ) in enumerate( conf[ "subj" ][ "nudge_vals" ] ):
 
 		coreg_cmd.extend( [ "-parini",
