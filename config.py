@@ -207,7 +207,7 @@ def _get_subj_conf( subj_id = None ):
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
 	          "mot_base" : 7,
-	          "nudge_vals" : [ -26, -2, -10 ],
+	          "nudge_vals" : [ -32, -1, -15 ],
 	          "node_k" : { "lh" : 128434,
 	                       "rh" : 128461
 	                     }
@@ -256,6 +256,7 @@ def _get_subj_conf( subj_id = None ):
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
 	          "mot_base" : 7,
+	          "nudge_vals" : [ -27, -2, -17 ],
 	          "node_k" : { "lh" : 126078,
 	                       "rh" : 126201
 	                     }
