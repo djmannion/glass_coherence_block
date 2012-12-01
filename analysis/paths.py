@@ -20,77 +20,45 @@ def get_subj_paths( conf ):
 	                                            n_runs = conf[ "subj" ][ "n_runs" ]
 	                                          )
 
+	paths.ana = _get_ana_paths( conf, paths )
+	paths.logs = _get_log_paths( conf, paths )
+
 	return paths
 
 
 def _get_ana_paths( conf, paths ):
 	"""Get the paths for the analysis"""
 
+	ana = fmri_tools.paths.PathsHandler()
+
+	ana.base = paths.base / "analysis"
+
 	subj_id = conf[ "subj" ][ "subj_id" ]
 	exp_id = conf[ "exp" ][ "id" ]
 
-	ana = {}
+	file_base = "{subj_id:s}_{exp_id:s}-".format( subj_id = subj_id, exp_id = exp_id )
 
-	ana[ "base_dir" ] = os.path.join( paths[ "study" ][ "subj_dir" ],
-	                                  subj_id,
-	                                  "analysis"
-	                                )
+	ana.stim_times = ana.base + ( file_base + "stim_times" )
 
-	ana[ "time_files" ] = os.path.join( ana[ "base_dir" ],
-	                                    "%s_%s_stim_times-" % ( subj_id, exp_id )
-	                                  )
+	return ana
 
-	ana[ "mot_est" ] = os.path.join( ana[ "base_dir" ],
-	                                 "%s_%s-mot_est.txt" % ( subj_id, exp_id )
-	                               )
+def _get_log_paths( conf, paths ):
+	"""Get the paths for the logfiles"""
 
-	ana[ "bl_poly" ] = os.path.join( ana[ "base_dir" ],
-	                                 "%s_%s-bl_poly.txt" % ( subj_id, exp_id )
-	                               )
+	logs = fmri_tools.paths.PathsHandler()
 
-	ana[ "pred_adj" ] = os.path.join( ana[ "base_dir" ],
-	                                  "%s_%s-pred_adj" % ( subj_id, exp_id )
-	                                )
+	logs.base = paths.base / "logs"
 
-	ana[ "glm" ] = os.path.join( ana[ "base_dir" ],
-	                             "%s_%s-glm" % ( subj_id, exp_id )
-	                           )
+	subj_id = conf[ "subj" ][ "subj_id" ]
+	exp_id = conf[ "exp" ][ "id" ]
 
-	ana[ "beta" ] = os.path.join( ana[ "base_dir" ],
-	                              "%s_%s-beta" % ( subj_id, exp_id )
-	                            )
+	file_base = "{subj_id:s}_{exp_id:s}_".format( subj_id = subj_id, exp_id = exp_id )
 
-	ana[ "bltc" ] = os.path.join( ana[ "base_dir" ],
-	                              "%s_%s-bltc" % ( subj_id, exp_id )
-	                            )
+	logs.seq = logs.base + ( file_base + "seq" )
+	logs.task = logs.base + ( file_base + "task" )
+	logs.resp = logs.base + ( file_base + "resp" )
 
-	ana[ "bl" ] = os.path.join( ana[ "base_dir" ],
-	                            "%s_%s-bl" % ( subj_id, exp_id )
-	                          )
-
-	ana[ "psc" ] = os.path.join( ana[ "base_dir" ],
-	                             "%s_%s-psc" % ( subj_id, exp_id )
-	                           )
-
-	ana[ "loc_fdr" ] = os.path.join( ana[ "base_dir" ],
-	                                 "%s_%s-loc_fdr" % ( subj_id, exp_id )
-	                               )
-
-	ana[ "loc_mask" ] = os.path.join( ana[ "base_dir" ],
-	                                  "%s_%s-loc_mask" % ( subj_id, exp_id )
-	                                )
-
-	ana[ "raw" ] = os.path.join( ana[ "base_dir" ],
-	                             "%s_%s-raw" % ( subj_id, exp_id )
-	                           )
-
-	ana[ "raw_adj" ] = os.path.join( ana[ "base_dir" ],
-	                                 "%s_%s-raw_adj" % ( subj_id, exp_id )
-	                               )
-
-	paths[ "ana" ] = ana
-
-	return paths
+	return logs
 
 
 def _get_roi_paths( conf, paths ):

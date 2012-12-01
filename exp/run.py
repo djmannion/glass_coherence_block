@@ -15,12 +15,13 @@ try:
 	import psychopy.logging
 	psychopy.logging.console.setLevel( psychopy.logging.CRITICAL )
 
+	import stimuli.psychopy_ext, stimuli.utils
+
 except ImportError:
 
 	pass
 
 import glass_coherence_block.config
-import stimuli.psychopy_ext, stimuli.utils
 
 __author__ = "Damien Mannion"
 __license__ = "GPL"
