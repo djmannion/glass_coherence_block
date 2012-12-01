@@ -142,7 +142,7 @@ def roi_stat( paths, conf ):
 
 			# use the absolute value to get a two-tailed p
 			p = scipy.stats.percentileofscore( np.abs( perm_trend[ :, i_trend ] ),
-			                                   np.abs( stat_data[ 0, i_trend ] )
+			                                   np.abs( stat_data[ i_roi, 0, i_trend ] )
 			                                 )
 
 			stat_data[ i_roi, 2, i_trend ] = ( 100 - p ) / 100.0

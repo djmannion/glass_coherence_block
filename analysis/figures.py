@@ -225,7 +225,7 @@ def plot_roi_psc( paths, conf ):
 		ax.set_ylim( [ -0.4, 0.4 ] )
 
 		ax.set_ylabel( "Response (psc)" )
-		ax.set_xlabel( "Coherence (%)" )
+		ax.set_xlabel( "Stimulus coherence (%)" )
 
 		ax.set_xticks( x )
 
@@ -259,12 +259,12 @@ def plot_lin_trend_hist( paths, conf ):
 
 	fig = plt.figure()
 
-	fig.set_size_inches( 7.08661, 5.08661, forward = True )
+	fig.set_size_inches( 7.08661, 7.08661, forward = True )
 
 	gs = gridspec.GridSpec( 3, 3 )
 
 	x = np.linspace( -10.0, 10.0, 500 )
-	px = 4
+	px = 3
 
 	ix = np.logical_and( x > -px, x < px )
 
@@ -298,34 +298,31 @@ def plot_lin_trend_hist( paths, conf ):
 
 			y /= np.sum( y )
 
-			ax.plot( x[ ix ], y[ ix ], color = [ 0.0 ] * 3 )
+			ax.plot( x[ ix ], y[ ix ], color = [ 0.25 ] * 3 )
 
 			mu.append( np.mean( lin_coeff ) )
 
 		ylim = ax.get_ylim()
 
-		ax.plot( [ 0, 0 ], [ 0, ylim[ 1 ] ], "k--", zorder = -100 )
+		ax.plot( [ 0, 0 ], [ 0, 0.05 ], "k--", zorder = -100 )
 
 		for subj_mu in mu:
 
-			mu_h = 0.05 * ylim[ 1 ]
+			mu_h = 0.0025
 
-			ax.plot( [ subj_mu ] * 2, [ -mu_h - 0.02, -0.02 ], "k", alpha = 0.5 )
+			ax.plot( [ subj_mu ] * 2,
+			         [ -mu_h - 0.00125, -mu_h + 0.00125 ],
+			         color = [ 0.25 ] * 3
+			       )
 
 		_cleanup_fig( ax )
 
-#		ax.set_xlim( [ -10, 110 ] )
-		ax.set_ylim( [ -0.01, ylim[ 1 ] ] )
+		ax.set_ylim( [ -0.005, 0.05 ] ) # ylim[ 1 ] ] )
 
-		if i_roi == 6:
-			ax.set_xlabel( "Linear trend coefficient" )
-			ax.set_ylabel( "Density (norm)" )
+		ax.set_xlabel( "Linear trend coefficient" )
+		ax.set_ylabel( "Density (norm)" )
 
-			ax.set_yticks( [ 0, 0.01, 0.02, 0.03 ] )
-
-		else:
-			ax.set_xticklabels( [] )
-			ax.set_yticklabels( [] )
+		ax.set_yticks( [ 0, 0.01, 0.02, 0.03, 0.04, 0.05 ] )
 
 		ax.text( 0.1,
 		         0.9,
@@ -334,12 +331,12 @@ def plot_lin_trend_hist( paths, conf ):
 		         fontsize = 10 / 1.25
 		       )
 
-	plt.subplots_adjust( left = 0.10,
-	                     bottom = 0.10,
-	                     right = 0.95,
+	plt.subplots_adjust( left = 0.09,
+	                     bottom = 0.07,
+	                     right = 0.97,
 	                     top = 0.97,
-	                     wspace = 0.32,
-	                     hspace = 0.19
+	                     wspace = 0.41,
+	                     hspace = 0.34
 	                   )
 
 	plt.show()
