@@ -64,7 +64,7 @@ def mot_correct( conf, paths ):
 	orig_paths = [ orig_path.full() for orig_path in paths.func.origs ]
 	corr_paths = [ corr_path.full() for corr_path in paths.func.corrs ]
 
-	i_base = conf[ "subj" ][ "mot_corr_base" ] - 1
+	i_base = conf[ "subj" ][ "mot_base" ] - 1
 	base_path = "{fname:s}[0]".format( fname = paths.func.origs[ i_base ].full( ".nii" ) )
 
 	fmri_tools.preproc.mot_correct( orig_paths = orig_paths,
@@ -127,9 +127,9 @@ def sess_reg( conf, paths ):
 
 	fmri_tools.preproc.img_reg( reg_dir = paths.reg.base.full(),
 	                            base_file = paths.reg.mean.file( "+orig" ),
-	                            ref_file = paths.reg.anat_ref.file( "+orig" ),
-	                            reg_file = paths.reg.anat_reg.file( "+orig" )
+	                            mov_file = paths.reg.anat_ref.file( "+orig" )
 	                          )
+
 
 
 def vol_to_surf( conf, paths ):
@@ -177,9 +177,7 @@ def design_prep( conf, paths ):
 
 	# we want to write out a time file for each condition, where every row is a
 	# run and the columns are the block onset times
-	run_files = [ open( "%s%d.txt" % ( paths[ "ana" ][ "time_files" ],
-	                                   cond_num
-	                                 ),
+	run_files = [ open( paths.ana.stim_times.full( "_{c:d}.txt".format( c = cond_num ) ),
 	                    "w"
 	                  )
 	              for cond_num in np.arange( 1, n_cond + 1 )
@@ -192,7 +190,7 @@ def design_prep( conf, paths ):
 
 		# load the sequence info for this run, which is output by the experiment
 		# script
-		run_seq = np.load( "%s%d.npy" % ( paths[ "log" ][ "seq_base" ], i_run + 1 ) )
+		run_seq = np.load( paths.logs.seq.full( "_{run:d}.npy".format( run = ( i_run + 1 ) ) ) )
 
 		( n_evt, n_params ) = run_seq.shape
 
@@ -242,51 +240,10 @@ def design_prep( conf, paths ):
 			i_evt_file = evt_cond - 1
 
 			# write the onset time
-			run_files[ i_evt_file ].write( "%.5f\t" % evt_time )
+			run_files[ i_evt_file ].write( "{et:.5f}\t".format( et = evt_time ) )
 
 		# finished this run, so add a newline to every condition's file
 		_ = [ run_file.write( "\n" ) for run_file in run_files ]
 
 	# finished, so close all the open files
 	_ = [ run_file.close() for run_file in run_files ]
-
-
-	# POLYNOMIALS
-	# ---
-
-	# total number of volumes
-	n_tot_vol = conf[ "exp" ][ "run_full_len_s" ] / conf[ "acq" ][ "tr_s" ]
-
-	# number of volumes to reject at the start and end
-	n_pre_vol = conf[ "exp" ][ "pre_len_s" ] / conf[ "acq" ][ "tr_s" ]
-	n_post_vol = conf[ "exp" ][ "post_len_s" ] / conf[ "acq" ][ "tr_s" ]
-
-	# number of volumes left after rejection
-	n_valid_vol = n_tot_vol - n_pre_vol - n_post_vol
-
-	# compute the polynomial timecourses
-	run_trends = fmri_tools.utils.legendre_poly( conf[ "ana" ][ "poly_ord" ],
-	                                             int( n_valid_vol ),
-	                                             pre_n = int( n_pre_vol ),
-	                                             post_n = int( n_post_vol )
-	                                           )
-
-	assert( run_trends.shape[ 0 ] == n_tot_vol )
-
-	# need to have a set of trends for each run, zeroed elsewhere
-	bl_trends = np.zeros( ( n_tot_vol  * conf[ "subj" ][ "n_runs" ],
-	                        conf[ "ana" ][ "poly_ord" ] * conf[ "subj" ][ "n_runs" ]
-	                      )
-	                    )
-
-	for i_run in xrange( conf[ "subj" ][ "n_runs" ] ):
-
-		i_row_start = i_run * run_trends.shape[ 0 ]
-		i_row_end = i_row_start + run_trends.shape[ 0 ]
-
-		i_col_start = i_run * run_trends.shape[ 1 ]
-		i_col_end = i_col_start + run_trends.shape[ 1 ]
-
-		bl_trends[ i_row_start:i_row_end, i_col_start:i_col_end ] = run_trends
-
-	np.savetxt( paths[ "ana" ][ "bl_poly" ], bl_trends )

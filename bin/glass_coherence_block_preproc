@@ -89,16 +89,16 @@ def main():
 		glass_coherence_block.analysis.preproc.convert( conf, paths )
 
 	elif args.preproc_step == "correct":
-		glass_coherence_block.analysis.preproc.motion_correct( conf, paths )
+		glass_coherence_block.analysis.preproc.mot_correct( conf, paths )
 
 	elif args.preproc_step == "fieldmap":
 		glass_coherence_block.analysis.preproc.fieldmaps( conf, paths )
 
 	elif args.preproc_step == "undistort":
-		glass_coherence_block.analysis.preproc.undistort( conf, paths )
+		glass_coherence_block.analysis.preproc.unwarp( conf, paths )
 
-	elif args.preproc_step == "surf_reg":
-		glass_coherence_block.analysis.preproc.surf_reg( conf, paths )
+	elif args.preproc_step == "sess_reg":
+		glass_coherence_block.analysis.preproc.sess_reg( conf, paths )
 
 	elif args.preproc_step == "vol_to_surf":
 		glass_coherence_block.analysis.preproc.vol_to_surf( conf, paths )
