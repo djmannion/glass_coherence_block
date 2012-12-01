@@ -7,6 +7,8 @@ import os
 import argparse
 
 import glass_coherence_block.config, glass_coherence_block.analysis.paths
+import glass_coherence_block.analysis.group_analysis
+
 
 def main():
 	"""Execution function"""
@@ -40,7 +42,7 @@ def main():
 	                                  formatter_class = fmt,
 	                                )
 
-	steps = ( "roi_mean",
+	steps = ( "rois",
 	          "stat"
 	        )
 

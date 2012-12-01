@@ -32,8 +32,7 @@ def glm( paths, conf ):
 	stim_labels = [ "%.2f" % coh for coh in conf[ "stim" ][ "coh_levels" ] ]
 
 	# contrast coefficients; each column corresponds to a condition
-	con_coef = [ [ +1, +1, +1, +1 ]
-	           ]
+	con_coef = [ [ +1, +1, +1, +1 ] ]
 
 	con_lbl = [ "stim" ]
 
@@ -240,7 +239,7 @@ def beta_to_psc( paths, conf ):
 		           "-cbucket", beta_file,
 		           "-matrix", mat_file,
 		           "-cenfill", "none",  # this is important
-		           "-select", "baseline",
+		           "-select", "poly",  # only use the polynomials
 		           "-prefix", bltc_file,
 		           "-overwrite"
 		         ]
