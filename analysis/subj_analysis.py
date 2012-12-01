@@ -12,34 +12,39 @@ import numpy as np
 import fmri_tools.utils
 
 
-def glm( paths, conf ):
+def glm( conf, paths ):
 	"""Experiment GLM"""
 
 	start_dir = os.getcwd()
 
-	os.chdir( paths[ "ana" ][ "base_dir" ] )
+	os.chdir( paths.ana.base.full() )
 
 	n_cond = len( conf[ "stim" ][ "coh_levels" ] )
 
 	hrf_model = conf[ "ana" ][ "hrf_model" ]
 
-	stim_files = [ "%s%d.txt" % ( paths[ "ana" ][ "time_files" ],
-	                              cond_num
-	                            )
+	# label for each condition
+	stim_labels = [ "{coh:.0f}".format( coh = ( coh * 100 ) )
+	                for coh in conf[ "stim" ][ "coh_levels" ]
+	              ]
+
+	# files containing the stimulus times for each condition
+	stim_times = [ paths.ana.stim_times.full( "_{c:d}.txt".format( c = cond_num ) )
 	               for cond_num in np.arange( 1, n_cond + 1 )
 	             ]
 
-	stim_labels = [ "%.2f" % coh for coh in conf[ "stim" ][ "coh_levels" ] ]
-
 	# contrast coefficients; each column corresponds to a condition
-	con_coef = [ [ +1, +1, +1, +1 ] ]
+	con_coef = [ [ +1, +1, +1, +1 ],  # localiser
+	             [ -3, -1, +1, +3 ]   # linear
+	           ]
 
-	con_lbl = [ "stim" ]
+	# label for each contrast
+	con_lbl = [ "stim", "lin" ]
 
-	# put the contrast into an AFNI-aware format
+	# put the contrasts into an AFNI-aware format
 	con_str = [ "SYM: " +
-	            " ".join( [ "%d*%s" % con
-	                        for con in zip( coef, stim_labels )
+	            " ".join( [ "{c:d}*{l:s}".format( c = c, l = l )
+	                        for ( c, l ) in zip( coef, stim_labels )
 	                      ]
 	                    )
 	            for coef in con_coef
@@ -49,7 +54,7 @@ def glm( paths, conf ):
 	censor_vols = conf[ "exp" ][ "pre_len_s" ] / conf[ "acq" ][ "tr_s" ] - 1
 
 	# in AFNI-aware format; (runs):start-end
-	censor_str = "*:0-%d" % censor_vols
+	censor_str = "*:0-{v:.0f}".format( v = censor_vols )
 
 	for hemi in [ "lh", "rh" ]:
 
@@ -57,36 +62,35 @@ def glm( paths, conf ):
 		            "-input"
 		          ]
 
-		glm_cmd.extend( [ "%s_%s.niml.dset" % ( surf_file, hemi )
-		                  for surf_file in paths[ "func" ][ "surf_files" ]
+		glm_cmd.extend( [ surf_file.full( "_{hemi:s}.niml.dset".format( hemi = hemi ) )
+		                  for surf_file in paths.func.surfs
 		                ]
 		              )
 
-		glm_cmd.extend( [ "-force_TR", "%.3f" % conf[ "acq" ][ "tr_s" ],
-		                  "-polort", "-1",  # we pass our own below
-		                  "-ortvec", paths[ "ana" ][ "bl_poly" ], "poly",
-		                  "-ortvec", paths[ "summ" ][ "mot_est_file" ], "mot",
+		glm_cmd.extend( [ "-force_TR", "{tr:.3f}".format( tr = conf[ "acq" ][ "tr_s" ] ),
+		                  "-polort", "{p:d}".format( p = conf[ "ana" ][ "poly_ord" ] ),
+		                  "-ortvec", paths.summ.motion.full( ".txt" ), "mot",
 		                  "-local_times",
 		                  "-CENSORTR", censor_str,
 		                  "-xjpeg", "exp_design.png",
 		                  "-x1D", "exp_design",
 		                  "-overwrite",
 		                  "-x1D_stop",  # want to use REML, so don't bother running
-		                  "-num_stimts", "%d" % n_cond
+		                  "-num_stimts", "{n:d}".format( n = n_cond )
 		                ]
 		              )
 
 		for i_stim in xrange( n_cond ):
 
 			glm_cmd.extend( [ "-stim_label",
-			                  "%d" % ( i_stim + 1 ),
+			                  "{sl:d}".format( sl = ( i_stim + 1 ) ),
 			                  stim_labels[ i_stim ]
 			                ]
 			              )
 
 			glm_cmd.extend( [ "-stim_times",
-			                  "%d" % ( i_stim + 1 ),
-			                  stim_files[ i_stim ],
+			                  "{sl:d}".format( sl = ( i_stim + 1 ) ),
+			                  stim_times[ i_stim ],
 			                  hrf_model
 			                ]
 			              )
@@ -95,48 +99,42 @@ def glm( paths, conf ):
 		for i_con in xrange( len( con_coef ) ):
 
 			glm_cmd.extend( [ "-gltsym",
-			                  con_str[ i_con ]
+			                  "'" + con_str[ i_con ] + "'"
 			                ]
 			              )
 
 			glm_cmd.extend( [ "-glt_label",
-			                  "%d" % ( i_con + 1 ),
+			                  "{cl:d}".format( cl = ( i_con + 1 ) ),
 			                  con_lbl[ i_con ]
 			                ]
 			              )
 
 		# run this first GLM
-		fmri_tools.utils.run_cmd( glm_cmd,
-		                          env = fmri_tools.utils.get_env(),
-		                          log_path = paths[ "summ" ][ "log_file" ]
-		                        )
+		fmri_tools.utils.run_cmd( " ".join( glm_cmd ) )
 
 		# delete the annoying command file that 3dDeconvolve writes
 		os.remove( "Decon.REML_cmd" )
 
-		glm_file = "%s_%s" % ( paths[ "ana" ][ "glm" ], hemi )
-		beta_file = "%s_%s" % ( paths[ "ana" ][ "beta" ], hemi )
-
 		reml_cmd = [ "3dREMLfit",
 		             "-matrix", "exp_design.xmat.1D",
-		             "-Rbeta", "%s_reml.niml.dset" % beta_file,
+		             "-Rbeta", paths.ana.beta.file( "_{hemi:s}.niml.dset".format( hemi = hemi ) ),
 		             "-tout",
-		             "-Rbuck", "%s_reml.niml.dset" % glm_file,
+		             "-Rbuck", paths.ana.glm.file( "_{hemi:s}.niml.dset".format( hemi = hemi ) ),
 		             "-overwrite",
 		             "-input"
 		           ]
 
-		reml_cmd.append( " ".join( [ "%s_%s.niml.dset" % ( surf_file, hemi )
-		                             for surf_file in paths[ "func" ][ "surf_files" ]
+		reml_cmd.append( "'" +
+		                 " ".join( [ surf_file.full( "_{hemi:s}.niml.dset".format( hemi = hemi ) )
+		                             for surf_file in paths.func.surfs
 		                           ]
-		                         )
+		                         ) +
+		                 "'"
 		               )
 
 		# run the proper GLM
-		fmri_tools.utils.run_cmd( reml_cmd,
-		                          env = fmri_tools.utils.get_env(),
-		                          log_path = paths[ "summ" ][ "log_file" ]
-		                        )
+		fmri_tools.utils.run_cmd( " ".join( reml_cmd ) )
+
 
 	os.chdir( start_dir )
 

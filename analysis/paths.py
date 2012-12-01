@@ -40,6 +40,9 @@ def _get_ana_paths( conf, paths ):
 
 	ana.stim_times = ana.base + ( file_base + "stim_times" )
 
+	ana.glm = ana.base + ( file_base + "glm" )
+	ana.beta = ana.base + ( file_base + "beta" )
+
 	return ana
 
 def _get_log_paths( conf, paths ):
