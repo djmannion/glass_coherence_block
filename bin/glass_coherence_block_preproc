@@ -1,13 +1,15 @@
-#! /usr/bin/env python
+#! /usr/bin/env python2
 
 """Runs a pre-processing step for a subject in the Glass coherence block fMRI
 experiment"""
 
-import os
 import argparse
+import logging
+import sys
 
 import glass_coherence_block.config, glass_coherence_block.analysis.paths
 import glass_coherence_block.analysis.preproc
+
 
 def main():
 	"""Execution function"""
@@ -25,22 +27,11 @@ def main():
 	  correct : performs motion correction.
 	  fieldmap : prepares the fieldmaps.
 	  undistort : applies distortion correction to the functional data.
-	  surf_reg : register to the canonical anatomy.
+	  sess_reg : register to the canonical anatomy.
 	  vol_to_surf : project the volumes onto the cortical surface.
 	  design_prep : prepares design specs for future GLM analysis.
 	
-	---N.B.---
-	
-	* The script must be run from the glass_coherence_block/bin directory.
-	
 	"""
-
-	target_dir = "glass_coherence_block/bin"
-
-	current_dir = os.getcwd()
-
-	if current_dir[ -len( target_dir ): ] != target_dir:
-		raise IOError( "Script needs to be launched from %s" % target_dir )
 
 	# use this formatter so we can supply our own indentation
 	fmt = argparse.RawDescriptionHelpFormatter
@@ -58,7 +49,7 @@ def main():
 	                  "correct",
 	                  "fieldmap",
 	                  "undistort",
-	                  "surf_reg",
+	                  "sess_reg",
 	                  "vol_to_surf",
 	                  "design_prep",
 	                )
@@ -78,29 +69,45 @@ def main():
 	conf = glass_coherence_block.config.get_conf( args.subj_id )
 	paths = glass_coherence_block.analysis.paths.get_subj_paths( conf )
 
+	logger = logging.getLogger()
+	logger.setLevel( logging.INFO )
+
+	log_fmt = logging.Formatter( "%(name)s, %(asctime)s, (%(levelname)s)\n-----\n%(message)s\n" )
+
+	file_log = logging.FileHandler( paths.log.full() )
+	file_log.setFormatter( log_fmt )
+
+	logger.addHandler( file_log )
+
+	scr_log = logging.StreamHandler( sys.stdout )
+	scr_log.setLevel( logging.INFO )
+	scr_log.setFormatter( log_fmt )
+
+	logger.addHandler( scr_log )
+
 	if args.preproc_step == "convert":
-		glass_coherence_block.analysis.preproc.convert( paths, conf )
+		glass_coherence_block.analysis.preproc.convert( conf, paths )
 
 	elif args.preproc_step == "correct":
-		glass_coherence_block.analysis.preproc.motion_correct( paths, conf )
+		glass_coherence_block.analysis.preproc.motion_correct( conf, paths )
 
 	elif args.preproc_step == "fieldmap":
-		glass_coherence_block.analysis.preproc.fieldmaps( paths, conf )
+		glass_coherence_block.analysis.preproc.fieldmaps( conf, paths )
 
 	elif args.preproc_step == "undistort":
-		glass_coherence_block.analysis.preproc.undistort( paths, conf )
+		glass_coherence_block.analysis.preproc.undistort( conf, paths )
 
 	elif args.preproc_step == "surf_reg":
-		glass_coherence_block.analysis.preproc.surf_reg( paths, conf )
+		glass_coherence_block.analysis.preproc.surf_reg( conf, paths )
 
 	elif args.preproc_step == "vol_to_surf":
-		glass_coherence_block.analysis.preproc.vol_to_surf( paths, conf )
+		glass_coherence_block.analysis.preproc.vol_to_surf( conf, paths )
 
 	elif args.preproc_step == "design_prep":
-		glass_coherence_block.analysis.preproc.design_prep( paths, conf )
+		glass_coherence_block.analysis.preproc.design_prep( conf, paths )
 
 	else:
-		print "Not completed"
+		print "Not implemented"
 
 
 if __name__ == "__main__":
