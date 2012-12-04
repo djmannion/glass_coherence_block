@@ -43,7 +43,15 @@ def _get_ana_paths( conf, paths ):
 	ana.glm = ana.base + ( file_base + "glm" )
 	ana.beta = ana.base + ( file_base + "beta" )
 
+	ana.bltc = ana.base + ( file_base + "bltc" )
+	ana.bl = ana.base + ( file_base + "bl" )
+	ana.psc = ana.base + ( file_base + "psc" )
+
+	ana.fdr = ana.base + ( file_base + "fdr" )
+	ana.mask = ana.base + ( file_base + "mask" )
+
 	return ana
+
 
 def _get_log_paths( conf, paths ):
 	"""Get the paths for the logfiles"""
