@@ -6,6 +6,7 @@ block design fMRI experiment.
 from __future__ import division
 
 import os, os.path
+import logging
 
 import numpy as np
 
@@ -14,6 +15,9 @@ import fmri_tools.utils
 
 def glm( conf, paths ):
 	"""Experiment GLM"""
+
+	logger = logging.getLogger( __name__ )
+	logger.info( "Running GLM..." )
 
 	start_dir = os.getcwd()
 
@@ -209,99 +213,82 @@ def loc_mask( paths, conf ):
 	os.chdir( start_dir )
 
 
-def beta_to_psc( paths, conf ):
-	"""Convert the GLM beta weights into units of percent signal change"""
+def loc_mask( conf, paths ):
+	"""Form a mask from the GLM output"""
+
+	logger = logging.getLogger( __name__ )
+	logger.info( "Running localising mask creation..." )
 
 	# these are the indices into the beta files for the data we want to convert
-	beta_briks = "0,1,2,3"
-
-	start_dir = os.getcwd()
-
-	os.chdir( paths[ "ana" ][ "base_dir" ] )
+	loc_brick = "[10]"
 
 	for hemi in [ "lh", "rh" ]:
 
-		# dataset holding the beta weights
-		beta_file = "%s_%s_reml.niml.dset" % ( paths[ "ana" ][ "beta" ], hemi )
-
-		# design matrix file
-		mat_file = os.path.join( paths[ "ana" ][ "base_dir" ],
-		                         "exp_design.xmat.1D"
-		                       )
-
-		# baseline timecourse dataset, to write
-		bltc_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "bltc" ], hemi )
-
-		# generate an average baseline timecourse
-		bl_cmd = [ "3dSynthesize",
-		           "-cbucket", beta_file,
-		           "-matrix", mat_file,
-		           "-cenfill", "none",  # this is important
-		           "-select", "poly",  # only use the polynomials
-		           "-prefix", bltc_file,
-		           "-overwrite"
-		         ]
-
-		fmri_tools.utils.run_cmd( bl_cmd,
-		                          env = fmri_tools.utils.get_env(),
-		                          log_path = paths[ "summ" ][ "log_file" ]
-		                        )
-
-		# baseline (point-estimate) dataset, to write
-		bl_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "bl" ], hemi )
-
-		# average baseline timecourse across time
-		avg_cmd = [ "3dTstat",
-		            "-mean",
-		            "-overwrite",
-		            "-prefix", bl_file,
-		            bltc_file
-		          ]
-
-		fmri_tools.utils.run_cmd( avg_cmd,
-		                          env = fmri_tools.utils.get_env(),
-		                          log_path = paths[ "summ" ][ "log_file" ]
-		                        )
-
-		# dataset to hold the percent signal change, to write
-		psc_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "psc" ], hemi )
-
-		# the input beta file, with sub-brick selector
-		beta_sel = "%s[%s]" % ( beta_file, beta_briks )
+		glm_path = ( paths.ana.glm.full( "_{hemi:s}.niml.dset".format( hemi = hemi ) ) +
+		             loc_brick
+		           )
 
 		# check that the label is as expected
-		beta_label = fmri_tools.utils.get_dset_label( beta_sel )
-		assert( beta_label == [ "0.00#0", "0.33#0", "0.66#0", "1.00#0" ] )
+		glm_label = fmri_tools.utils.get_dset_label( glm_path )
+		assert( glm_label == [ "stim#0_Tstat" ] )
 
-		# compute psc
-		# from http://afni.nimh.nih.gov/sscc/gangc/TempNorm.html
-		psc_cmd = [ "3dcalc",
-		            "-fscale",
-		            "-a", bl_file,
-		            "-b", beta_sel,
-		            "-expr", "100 * b/a * step (1- abs(b/a))",
-		            "-prefix", psc_file,
-		            "-overwrite"
-		          ]
+		fdr_path = paths.ana.fdr.full( "_{hemi:s}.niml.dset".format( hemi = hemi ) )
+		mask_path = paths.ana.mask.full( "_{hemi:s}.niml.dset".format( hemi = hemi ) )
 
-		fmri_tools.utils.run_cmd( psc_cmd,
-		                          env = fmri_tools.utils.get_env(),
-		                          log_path = paths[ "summ" ][ "log_file" ]
-		                        )
+		fmri_tools.utils.loc_mask( glm_path = glm_path,
+		                           fdr_path = fdr_path,
+		                           mask_path = mask_path,
+		                           q_thresh = conf[ "ana" ][ "loc_q" ],
+		                           pos_only = True
+		                         )
 
-		# convert to full
-		full_psc_file = "%s_%s-full" % ( paths[ "ana" ][ "psc" ], hemi )
+		pad_mask_path = paths.ana.mask.full( "_{hemi:s}-full.niml.dset".format( hemi = hemi ) )
+		pad_nodes = "{nk:d}".format( nk = conf[ "subj" ][ "node_k" ][ hemi ] )
 
-		pad_node = "%d" % conf[ "subj" ][ "node_k" ][ hemi ]
-
-		fmri_tools.utils.sparse_to_full( psc_file,
-		                                 full_psc_file,
-		                                 pad_node = pad_node,
-		                                 log_path = paths[ "summ" ][ "log_file" ],
-		                                 overwrite = True
+		fmri_tools.utils.sparse_to_full( in_dset = mask_path,
+		                                 out_dset = pad_mask_path,
+		                                 pad_node = pad_nodes
 		                               )
 
-	os.chdir( start_dir )
+
+def beta_to_psc( conf, psc ):
+	"""Convert the GLM beta weights into units of percent signal change"""
+
+	logger = logging.getLogger( __name__ )
+	logger.info( "Running beta to PSC conversion..." )
+
+	# these are the indices into the beta files for the data we want to convert
+	beta_bricks = "[60,61,62,63]"
+
+	for hemi in [ "lh", "rh" ]:
+
+		beta_path = paths.ana.beta.full( "_{hemi:s}.niml.dset".format( hemi = hemi ) )
+
+		# check that the label is as expected
+		beta_label = fmri_tools.utils.get_dset_label( beta_path + beta_bricks )
+		assert( beta_label == [ "0#0", "33#0", "66#0", "100#0" ] )
+
+		design_path = ( paths.ana.base + "exp_design.xmat.1D" ).full()
+
+		bltc_path = paths.ana.bltc.full( "_{hemi:s}.niml.dset".format( hemi = hemi ) )
+		bl_path = paths.ana.bl.full( "_{hemi:s}.niml.dset".format( hemi = hemi ) )
+		psc_path = paths.ana.psc.full( "_{hemi:s}.niml.dset".format( hemi = hemi ) )
+
+		fmri_tools.utils.beta_to_psc( beta_path = beta_path,
+		                              beta_bricks = beta_bricks,
+		                              design_path = design_path,
+		                              bltc_path = bltc_path,
+		                              bl_path = bl_path,
+		                              psc_path = psc_path
+		                            )
+
+		pad_psc_path = paths.ana.psc.full( "_{hemi:s}-full.niml.dset".format( hemi = hemi ) )
+		pad_nodes = "{nk:d}".format( nk = conf[ "subj" ][ "node_k" ][ hemi ] )
+
+		fmri_tools.utils.sparse_to_full( in_dset = psc_path,
+		                                 out_dset = pad_psc_path,
+		                                 pad_node = pad_nodes
+		                               )
 
 
 def roi_xtr( paths, conf ):
@@ -351,167 +338,3 @@ def roi_xtr( paths, conf ):
 			                          env = fmri_tools.utils.get_env(),
 			                          log_path = paths[ "summ" ][ "log_file" ]
 			                        )
-
-
-def raw_adj( paths, conf ):
-	"""Concatenates raw timecourses and adjusts them for baselines"""
-
-	start_dir = os.getcwd()
-
-	os.chdir( paths[ "ana" ][ "base_dir" ] )
-
-	# since we use censoring in the GLM rather than trimming the data, we need to
-	# specify a volume range here
-	censor_vols = conf[ "exp" ][ "pre_len_s" ] / conf[ "acq" ][ "tr_s" ]
-	brick_range = "[%d..$]" % censor_vols
-
-	for hemi in [ "lh", "rh" ]:
-
-		# create a raw input dataset, concatentated across all runs
-		surf_files = [ "%s_%s.niml.dset%s" % ( surf_file, hemi, brick_range )
-		               for surf_file in paths[ "func" ][ "surf_files" ]
-		             ]
-
-		raw_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "raw" ], hemi )
-
-		cat_cmd = [ "3dTcat",
-		            "-overwrite",
-		            "-prefix", raw_file
-		          ]
-
-		cat_cmd.extend( surf_files )
-
-		fmri_tools.utils.run_cmd( cat_cmd,
-		                          env = fmri_tools.utils.get_env(),
-		                          log_path = paths[ "summ" ][ "log_file" ]
-		                        )
-
-		# adjust the raw file by subtracting the baseline
-		raw_adj_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "raw_adj" ], hemi )
-
-		bltc_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "bltc" ], hemi )
-
-		adj_cmd = [ "3dcalc",
-		            "-fscale",
-		            "-a", bltc_file,
-		            "-b", raw_file,
-		            "-expr", "b-a",
-		            "-prefix", raw_adj_file,
-		            "-overwrite"
-		          ]
-
-		fmri_tools.utils.run_cmd( adj_cmd,
-		                          env = fmri_tools.utils.get_env(),
-		                          log_path = paths[ "summ" ][ "log_file" ]
-		                        )
-
-		# dataset holding the beta weights
-		beta_file = "%s_%s_reml.niml.dset" % ( paths[ "ana" ][ "beta" ], hemi )
-
-		# design matrix file
-		mat_file = os.path.join( paths[ "ana" ][ "base_dir" ],
-		                         "exp_design.xmat.1D"
-		                       )
-
-		pred_adj_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "pred_adj" ], hemi )
-
-		# generate an signal timecourse
-		bl_cmd = [ "3dSynthesize",
-		           "-cbucket", beta_file,
-		           "-matrix", mat_file,
-		           "-cenfill", "none",  # important to match the censored data
-		           "-select", "allfunc",
-		           "-prefix", pred_adj_file,
-		           "-overwrite"
-		         ]
-
-		fmri_tools.utils.run_cmd( bl_cmd,
-		                          env = fmri_tools.utils.get_env(),
-		                          log_path = paths[ "summ" ][ "log_file" ]
-		                        )
-
-		# convert to full
-		full_raw_file = "%s_%s-full" % ( paths[ "ana" ][ "raw" ], hemi )
-		full_raw_adj_file = "%s_%s-full" % ( paths[ "ana" ][ "raw_adj" ], hemi )
-		full_pred_adj_file = "%s_%s-full" % ( paths[ "ana" ][ "pred_adj" ], hemi )
-
-		pad_node = "%d" % conf[ "subj" ][ "node_k" ][ hemi ]
-
-		pad_files = [ [ raw_file, full_raw_file ],
-		              [ raw_adj_file, full_raw_adj_file ],
-		              [ pred_adj_file, full_pred_adj_file ]
-		            ]
-
-		for ( sparse_file, full_file ) in pad_files:
-
-			fmri_tools.utils.sparse_to_full( sparse_file,
-			                                 full_file,
-			                                 pad_node = pad_node,
-			                                 log_path = paths[ "summ" ][ "log_file" ],
-			                                 overwrite = True
-			                               )
-
-	os.chdir( start_dir )
-
-
-def roi_tc( paths, conf ):
-	"""Compile raw and predicted (adjusted) timecourses for each ROI."""
-
-	for hemi in [ "lh", "rh" ]:
-
-		# the *full* localiser mask file
-		loc_mask_file = "%s_%s-full.niml.dset" % ( paths[ "ana" ][ "loc_mask" ],
-		                                           hemi
-		                                         )
-
-		# expression to apply the localiser mask
-		cmask_expr = "-a %s -expr step(a)" % loc_mask_file
-
-		# the *full* ROI file
-		roi_file = "%s_%s-full.niml.dset" % ( paths[ "rois" ][ "dset" ], hemi )
-
-		# iterate over all the ROIs
-		for ( roi_name, roi_val ) in conf[ "ana" ][ "rois" ]:
-
-			roi_raw_adj_file = "%s_%s_%s.txt" % ( paths[ "rois" ][ "raw_adj_tc" ],
-			                                      roi_name,
-			                                      hemi
-			                                    )
-
-			raw_adj_file = "%s_%s-full.niml.dset" % ( paths[ "ana" ][ "raw_adj" ],
-			                                          hemi
-			                                        )
-
-			roi_pred_adj_file = "%s_%s_%s.txt" % ( paths[ "rois" ][ "pred_adj_tc" ],
-			                                       roi_name,
-			                                       hemi
-			                                     )
-
-			pred_adj_file = "%s_%s-full.niml.dset" % ( paths[ "ana" ][ "pred_adj" ],
-			                                           hemi
-			                                         )
-
-			data_files = [ [ roi_raw_adj_file, raw_adj_file ],
-			               [ roi_pred_adj_file, pred_adj_file ]
-			             ]
-
-			for ( out_file, in_file ) in data_files:
-
-				# 3dmaskdump won't overwrite, so need to manually remove any prior data
-				if os.path.exists( out_file ):
-					os.remove( out_file )
-
-				# use the ROI file to mask the input dataset
-				xtr_cmd = [ "3dmaskdump",
-				            "-mask", roi_file,
-				            "-cmask", cmask_expr,
-				            "-mrange", roi_val, roi_val,
-				            "-noijk",
-				            "-o", out_file,
-				            in_file
-				          ]
-
-				fmri_tools.utils.run_cmd( xtr_cmd,
-				                          env = fmri_tools.utils.get_env(),
-				                          log_path = paths[ "summ" ][ "log_file" ]
-				                        )

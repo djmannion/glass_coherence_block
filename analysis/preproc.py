@@ -125,9 +125,16 @@ def sess_reg( conf, paths ):
 
 	logger.info( "Running registration..." )
 
+	if conf[ "subj" ][ "extra_al_params" ]:
+		extra_al_params = conf[ "subj" ][ "extra_al_params" ]
+	else:
+		extra_al_params = None
+
 	fmri_tools.preproc.img_reg( reg_dir = paths.reg.base.full(),
 	                            base_file = paths.reg.mean.file( "+orig" ),
-	                            mov_file = paths.reg.anat_ref.file( "+orig" )
+	                            mov_file = paths.reg.anat_ref.file( "+orig" ),
+	                            extra_al_params = extra_al_params,
+	                            move_type = None
 	                          )
 
 

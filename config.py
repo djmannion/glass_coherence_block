@@ -193,7 +193,7 @@ def _get_subj_conf( subj_id = None ):
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
 	          "mot_base" : 7,
-	          "nudge_vals" : [ -43, 6, -15 ],
+	          "extra_al_params" : None,
 	          "node_k" : { "lh" : 140847,
 	                       "rh" : 141381
 	                     }
@@ -205,7 +205,13 @@ def _get_subj_conf( subj_id = None ):
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
 	          "mot_base" : 7,
-	          "nudge_vals" : [ -32, -1, -15 ],
+	          "extra_al_params": [ "-parang", "1", "-9", "5",
+	                               "-parang", "2", "7", "17",
+	                               "-parang", "3", "25", "35",
+	                               "-maxrot", "10",
+	                               "-source_automask+2",
+	                               "-nocmass"
+	                             ],
 	          "node_k" : { "lh" : 128434,
 	                       "rh" : 128461
 	                     }
@@ -217,7 +223,13 @@ def _get_subj_conf( subj_id = None ):
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
 	          "mot_base" : 7,
-	          "nudge_vals" : [ -20, 6, -19 ],
+	          "extra_al_params" : [ "-parang", "1", "-9", "1",
+	                                "-parang", "2", "12", "22",
+	                                "-parang", "3", "17", "27",
+	                                "-maxrot", "10",
+	                                "-source_automask+2",
+	                                "-nocmass"
+	                              ],
 	          "node_k" : { "lh" : 130318,
 	                       "rh" : 131151
 	                     }
@@ -229,7 +241,13 @@ def _get_subj_conf( subj_id = None ):
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
 	          "mot_base" : 7,
-	          "nudge_vals" : [ -21, -7, -15 ],
+	          "extra_al_params" : [ "-parang", "1", "-2", "8",
+	                                "-parang", "2", "9", "19",
+	                                "-parang", "3", "12", "22",
+	                                "-maxrot", "10",
+	                                "-source_automask+2",
+	                                "-nocmass"
+	                              ],
 	          "node_k" : { "lh" : 140427,
 	                       "rh" : 141898
 	                     }
@@ -242,7 +260,7 @@ def _get_subj_conf( subj_id = None ):
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
 	          "mot_base" : 7,
-	          "nudge_vals" : [ -22, 0, -14 ],
+	          "extra_al_params" : None,
 	          "node_k" : { "lh" : 124787,
 	                       "rh" : 127339
 	                     }
@@ -254,7 +272,13 @@ def _get_subj_conf( subj_id = None ):
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
 	          "mot_base" : 7,
-	          "nudge_vals" : [ -27, -2, -17 ],
+	          "extra_al_params" : [ "-parang", "1", "-1", "9",
+	                                "-parang", "2", "12", "22",
+	                                "-parang", "3", "13", "28",
+	                                "-maxrot", "10",
+	                                "-source_automask+2",
+	                                "-nocmass"
+	                              ],
 	          "node_k" : { "lh" : 126078,
 	                       "rh" : 126201
 	                     }
