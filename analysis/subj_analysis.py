@@ -143,76 +143,6 @@ def glm( conf, paths ):
 	os.chdir( start_dir )
 
 
-def loc_mask( paths, conf ):
-	"""Creates a mask from the localiser contrast"""
-
-	start_dir = os.getcwd()
-
-	os.chdir( paths[ "ana" ][ "base_dir" ] )
-
-	# brik in the glm file that contains the localiser statistic
-	# this is verified below
-	loc_stat_brik = "10"
-
-	for hemi in [ "lh", "rh" ]:
-
-		glm_file = "%s_%s_reml.niml.dset" % ( paths[ "ana" ][ "glm" ], hemi )
-		glm_file += "[%s]" % loc_stat_brik
-
-		# check the localiser brik is as expected
-		assert( fmri_tools.utils.get_dset_label( glm_file ) == [ "stim#0_Tstat" ] )
-
-		# to write
-		loc_fdr_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "loc_fdr" ], hemi )
-
-		# convert the statistics for the localiser to a q (FDR) value
-		fdr_cmd = [ "3dFDR",
-		            "-input", glm_file,
-		            "-prefix", loc_fdr_file,
-		            "-qval",  # specify that we want q, not z
-		            "-float",
-		            "-overwrite"
-		          ]
-
-		fmri_tools.utils.run_cmd( fdr_cmd,
-		                          env = fmri_tools.utils.get_env(),
-		                          log_path = paths[ "summ" ][ "log_file" ]
-		                        )
-
-		loc_mask_file = "%s_%s.niml.dset" % ( paths[ "ana" ][ "loc_mask" ], hemi )
-
-		q_thresh = conf[ "ana" ][ "loc_q" ]
-
-		# create a localiser mask as nodes that both have a q that is below
-		# threshold and have positive beta weights
-		mask_cmd = [ "3dcalc",
-		             "-a", loc_fdr_file,
-		             "-b", glm_file,
-		             "-expr", "within( a, 0, %.6f ) * ispositive( b )" % q_thresh,
-		             "-prefix", loc_mask_file,
-		             "-overwrite"
-		           ]
-
-		fmri_tools.utils.run_cmd( mask_cmd,
-		                          env = fmri_tools.utils.get_env(),
-		                          log_path = paths[ "summ" ][ "log_file" ]
-		                        )
-
-		# convert to full
-		full_mask_file = "%s_%s-full" % ( paths[ "ana" ][ "loc_mask" ], hemi )
-
-		pad_node = "%d" % conf[ "subj" ][ "node_k" ][ hemi ]
-
-		fmri_tools.utils.sparse_to_full( loc_mask_file,
-		                                 full_mask_file,
-		                                 pad_node = pad_node,
-		                                 log_path = paths[ "summ" ][ "log_file" ],
-		                                 overwrite = True
-		                               )
-
-	os.chdir( start_dir )
-
-
 def loc_mask( conf, paths ):
 	"""Form a mask from the GLM output"""
 
@@ -251,7 +181,7 @@ def loc_mask( conf, paths ):
 		                               )
 
 
-def beta_to_psc( conf, psc ):
+def beta_to_psc( conf, paths ):
 	"""Convert the GLM beta weights into units of percent signal change"""
 
 	logger = logging.getLogger( __name__ )
