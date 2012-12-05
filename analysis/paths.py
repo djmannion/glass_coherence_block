@@ -72,6 +72,8 @@ def _get_roi_paths( conf, paths ):
 	roi.mask_rois = roi.base + ( file_base + "mask_rois" )
 	roi.rois = roi.base + ( file_base + "rois" )
 
+	roi.psc = roi.base + ( file_base + "psc" )
+
 	return roi
 
 
