@@ -291,6 +291,74 @@ def beta_to_psc( conf, psc ):
 		                               )
 
 
+def roi_prep( conf, paths ):
+	"""Prepares the ROI datasets"""
+
+	logger = logging.getLogger( __name__ )
+	logger.info( "Running ROI preparation..." )
+
+	start_dir = os.getcwd()
+
+	os.chdir( paths.roi.base.dir() )
+
+	for hemi in [ "lh", "rh" ]:
+
+		# first step is to extract a subset of the visual localiser rois
+		vl_path = paths.roi.vl.full( "_{hemi:s}-full.niml.dset".format( hemi = hemi ) )
+		vl_sub_path = paths.roi.vl_subset.full( "_{hemi:s}-full.niml.dset".format( hemi = hemi ) )
+
+		vl_expr = ( "'a*amongst(a," +
+		            ",".join( [ i_roi
+		                        for ( _, i_roi ) in conf[ "ana" ][ "vl_rois" ]
+		                      ]
+		                    ) +
+		            ")'"
+		          )
+
+		vl_cmd = [ "3dcalc",
+		           "-a", vl_path,
+		           "-prefix", vl_sub_path,
+		           "-expr", vl_expr,
+		           "-overwrite"
+		         ]
+
+		fmri_tools.utils.run_cmd( " ".join( vl_cmd ) )
+
+		mask_path = paths.roi.mask_rois.full( "_{hemi:s}-full.niml.dset".format( hemi = hemi ) )
+
+		# now we want to make a dataset from the non vis_loc rois
+		dset_cmd = [ "ROI2dataset",
+		             "-pad_to_node", "{nk:d}".format( nk = conf[ "subj" ][ "node_k" ][ hemi ] ),
+		             "-prefix", mask_path,
+		             "-overwrite",
+		             "-input", " ".join( [ "{hemi:s}_{roi:s}.1D.roi".format( hemi = hemi, roi = roi )
+		                                   for ( roi, _ ) in conf[ "ana" ][ "mask_rois" ]
+		                                 ]
+		                               )
+		           ]
+
+		fmri_tools.utils.run_cmd( " ".join( dset_cmd ) )
+
+		# now we want to combine the vis_loc and the mask ROI datasets
+		roi_path = paths.roi.rois.full( "_{hemi:s}-full.niml.dset".format( hemi = hemi ) )
+
+		cmb_expr = "'a+(iszero(a)*b)'"
+
+		cmb_cmd = [ "3dcalc",
+		            "-a", vl_sub_path,
+		            "-b", mask_path,
+		            "-expr", cmb_expr,
+		            "-overwrite",
+		            "-prefix", roi_path
+		          ]
+
+		fmri_tools.utils.run_cmd( " ".join( cmb_cmd ) )
+
+
+
+
+
+
 def roi_xtr( paths, conf ):
 	"""Extract PSC and statistics data from ROIs"""
 

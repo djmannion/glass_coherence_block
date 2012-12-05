@@ -22,6 +22,7 @@ def get_subj_paths( conf ):
 
 	paths.ana = _get_ana_paths( conf, paths )
 	paths.logs = _get_log_paths( conf, paths )
+	paths.roi = _get_roi_paths( conf, paths )
 
 	return paths
 
@@ -53,6 +54,27 @@ def _get_ana_paths( conf, paths ):
 	return ana
 
 
+def _get_roi_paths( conf, paths ):
+	"""Get the paths for the ROI analysis"""
+
+	roi = fmri_tools.paths.PathsHandler()
+
+	roi.base = paths.base / "rois"
+
+	subj_id = conf[ "subj" ][ "subj_id" ]
+	exp_id = conf[ "exp" ][ "id" ]
+
+	file_base = "{subj_id:s}_{exp_id:s}-".format( subj_id = subj_id, exp_id = exp_id )
+
+	roi.vl = roi.base + ( file_base + "vis_loc_rois" )
+	roi.vl_subset = roi.base + ( file_base + "vis_loc_rois_subset" )
+
+	roi.mask_rois = roi.base + ( file_base + "mask_rois" )
+	roi.rois = roi.base + ( file_base + "rois" )
+
+	return roi
+
+
 def _get_log_paths( conf, paths ):
 	"""Get the paths for the logfiles"""
 
@@ -70,42 +92,6 @@ def _get_log_paths( conf, paths ):
 	logs.resp = logs.base + ( file_base + "resp" )
 
 	return logs
-
-
-def _get_roi_paths( conf, paths ):
-	"""Get the paths for the ROI data"""
-
-	subj_id = conf[ "subj" ][ "subj_id" ]
-	exp_id = conf[ "exp" ][ "id" ]
-
-	rois = {}
-
-	rois[ "base_dir" ] = os.path.join( paths[ "study" ][ "subj_dir" ],
-	                                   subj_id,
-	                                   "rois"
-	                                 )
-
-	rois[ "dset" ] = os.path.join( rois[ "base_dir" ],
-	                               "%s_%s-rois" % ( subj_id, exp_id )
-	                             )
-
-	rois[ "psc" ] = os.path.join( rois[ "base_dir" ],
-	                              "%s_%s-psc" % ( subj_id, exp_id )
-	                            )
-
-	rois[ "raw_adj_tc" ] = os.path.join( rois[ "base_dir" ],
-	                                     "%s_%s-raw_adj_tc" % ( subj_id, exp_id )
-	                                   )
-
-	rois[ "pred_adj_tc" ] = os.path.join( rois[ "base_dir" ],
-	                                      "%s_%s-pred_adj_tc" % ( subj_id, exp_id )
-	                                    )
-
-	paths[ "rois" ] = rois
-
-	return paths
-
-
 
 
 def get_group_paths( conf ):
