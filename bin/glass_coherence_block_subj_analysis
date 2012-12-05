@@ -3,7 +3,6 @@
 """Runs a single-subject analysis step in the Glass coherence block fMRI
 experiment"""
 
-import os
 import argparse
 import logging
 import sys
@@ -44,8 +43,7 @@ def main():
 	               "loc_mask",
 	               "beta_to_psc",
 	               "roi_prep",
-	               "roi_xtr",
-	               "roi_tc"
+	               "roi_xtr"
 	             )
 
 	parser.add_argument( "proc_step",
@@ -94,11 +92,8 @@ def main():
 	elif args.proc_step == "roi_xtr":
 		glass_coherence_block.analysis.subj_analysis.roi_xtr( conf, paths )
 
-	elif args.proc_step == "roi_tc":
-		glass_coherence_block.analysis.subj_analysis.roi_tc( paths, conf )
-
 	else:
-		print "Not completed"
+		print "Not implemented"
 
 
 if __name__ == "__main__":
