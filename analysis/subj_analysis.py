@@ -354,55 +354,44 @@ def roi_prep( conf, paths ):
 
 		fmri_tools.utils.run_cmd( " ".join( cmb_cmd ) )
 
+	os.chdir( start_dir )
 
 
-
-
-
-def roi_xtr( paths, conf ):
+def roi_xtr( conf, paths ):
 	"""Extract PSC and statistics data from ROIs"""
+
+	logger = logging.getLogger( __name__ )
+	logger.info( "Running ROI extraction..." )
+
+	start_dir = os.getcwd()
+
+	os.chdir( paths.roi.base.dir() )
 
 	for hemi in [ "lh", "rh" ]:
 
-		# the *full* localiser mask file
-		loc_mask_file = "%s_%s-full.niml.dset" % ( paths[ "ana" ][ "loc_mask" ],
-		                                           hemi
-		                                         )
+		roi_path = paths.roi.rois.full( "_{hemi:s}-full.niml.dset".format( hemi = hemi ) )
 
-		# expression to apply the localiser mask
-		cmask_expr = "-a %s -expr step(a)" % loc_mask_file
+		dset_path = paths.ana.psc.full( "_{hemi:s}-full.niml.dset".format( hemi = hemi ) )
 
-		# the *full* ROI file
-		roi_file = "%s_%s-full.niml.dset" % ( paths[ "rois" ][ "dset" ], hemi )
+		txt_path = paths.roi.psc.full( "_{hemi:s}.txt".format( hemi = hemi ) )
 
-		# iterate over all the ROIs
-		for ( roi_name, roi_val ) in conf[ "ana" ][ "rois" ]:
+		mask_path = paths.ana.mask.full( "_{hemi:s}-full.niml.dset".format( hemi = hemi ) )
 
-			roi_psc_file = "%s_%s_%s.txt" % ( paths[ "rois" ][ "psc" ],
-			                                  roi_name,
-			                                  hemi
-			                                )
+		# 3dmaskdump won't overwrite, so need to manually remove any previous file
+		if os.path.exists( txt_path ):
+			os.remove( txt_path )
 
-			# 3dmaskdump won't overwrite, so need to manually remove any prior file
-			if os.path.exists( roi_psc_file ):
-				os.remove( roi_psc_file )
+		mask_expr = "'-a {m:s} -expr step(a)'".format( m = mask_path )
 
-			# our input dataset
-			data_file = "%s_%s-full.niml.dset" % ( paths[ "ana" ][ "psc" ],
-			                                       hemi
-			                                     )
+		xtr_cmd = [ "3dmaskdump",
+		            "-mask", roi_path,
+		            "-cmask", mask_expr,
+		            "-noijk",
+		            "-o", txt_path,
+		            roi_path,
+		            dset_path
+		          ]
 
-			# use the ROI file to mask the input dataset
-			xtr_cmd = [ "3dmaskdump",
-			            "-mask", roi_file,
-			            "-cmask", cmask_expr,
-			            "-mrange", roi_val, roi_val,
-			            "-noijk",
-			            "-o", roi_psc_file,
-			            data_file
-			          ]
+		fmri_tools.utils.run_cmd( " ".join( xtr_cmd ) )
 
-			fmri_tools.utils.run_cmd( xtr_cmd,
-			                          env = fmri_tools.utils.get_env(),
-			                          log_path = paths[ "summ" ][ "log_file" ]
-			                        )
+	os.chdir( start_dir )
