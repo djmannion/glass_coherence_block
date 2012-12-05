@@ -41,16 +41,17 @@ def _get_ana_conf( conf ):
 	"""
 	"""
 
-	rois = [ [ "v1", "1" ],
-	         [ "v2", "2" ],
-	         [ "v3", "3" ],
-	         [ "hv4", "4" ],
-	         [ "vo1", "10" ],
-	         [ "v3ab", "5" ],
-	         [ "lo1", "6" ],
-	         [ "lo2", "7" ],
-	         [ "hmtp", "9" ]
-	      ]
+	vl_rois = [ [ "v1", "1" ],
+	            [ "v2", "2" ],
+	            [ "v3", "3" ],
+	            [ "hmtp", "9" ]
+	          ]
+
+	mask_rois = [ [ "dra", "100" ],
+	              [ "vra", "200" ]
+	            ]
+
+	rois = vl_rois + mask_rois
 
 	hrf_model = "SPMG1(%d)" % conf[ "exp" ][ "block_len_s" ]
 
@@ -74,6 +75,8 @@ def _get_ana_conf( conf ):
 	n_perm = 10 ** 4
 
 	ana_conf = { "rois" : rois,
+	             "vl_rois" : vl_rois,
+	             "mask_rois" : mask_rois,
 	             "poly_ord" : poly_ord,
 	             "loc_q" : loc_q,
 	             "hrf_model" : hrf_model,
