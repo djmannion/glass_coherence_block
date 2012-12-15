@@ -9,17 +9,7 @@ import fmri_tools.utils
 
 
 def get_conf( subj_id = None ):
-	"""Overall experiment configuration.
-
-	Returns
-	-------
-	conf : dict, with items:
-		exp : holds overall experiment configurations
-		stim : stimulus configuration
-		task : behavioural task configuration
-		acq : acquisition configuration
-
-	"""
+	"""Overall experiment configuration."""
 
 	conf = {}
 
@@ -38,8 +28,7 @@ def get_conf( subj_id = None ):
 
 
 def _get_ana_conf( conf ):
-	"""
-	"""
+	"""Analysis configuration"""
 
 	vl_rois = [ [ "v1", "1" ],
 	            [ "v2", "2" ],
@@ -65,14 +54,12 @@ def _get_ana_conf( conf ):
 	              32103,
 	              41993,
 	              57043,
-	              20757,
-	              55026,
-	              46884,
-	              14935,
-	              15430
 	            ]
 
 	n_perm = 10 ** 4
+
+	task_bin_res_s = 0.1
+	task_perf_n_bins = 20
 
 	ana_conf = { "rois" : rois,
 	             "vl_rois" : vl_rois,
@@ -81,7 +68,9 @@ def _get_ana_conf( conf ):
 	             "loc_q" : loc_q,
 	             "hrf_model" : hrf_model,
 	             "roi_seeds" : roi_seeds,
-	             "n_perm" : n_perm
+	             "n_perm" : n_perm,
+	             "task_bin_res_s" : task_bin_res_s,
+	             "task_perf_n_bins" : task_perf_n_bins
 	           }
 
 	return ana_conf

@@ -325,3 +325,104 @@ def roi_xtr( conf, paths ):
 		fmri_tools.utils.run_cmd( " ".join( xtr_cmd ) )
 
 	os.chdir( start_dir )
+
+
+def task( conf, paths ):
+	"""Analyses performance on the behavioural task"""
+
+	# half-open interval
+	run_time_bins = np.arange( start = 0,
+	                           stop = conf[ "exp" ][ "run_full_len_s" ],
+	                           step = conf[ "ana" ][ "task_bin_res_s" ]
+	                         )[ :-1 ]
+
+	n_bins_per_run = len( run_time_bins )
+
+	# final dimension is ( task active, response registered, condition )
+	task_data = np.zeros( ( conf[ "subj" ][ "n_runs" ],
+	                        n_bins_per_run,
+	                        3
+	                      )
+	                    )
+
+	for i_run in xrange( conf[ "subj" ][ "n_runs" ] ):
+
+		task_path = paths.logs.task.full( "_{r:d}.npy".format( r = ( i_run + 1 ) ) )
+		resp_path = paths.logs.resp.full( "_{r:d}.npy".format( r = ( i_run + 1 ) ) )
+		seq_path = paths.logs.seq.full( "_{r:d}.npy".format( r = ( i_run + 1 ) ) )
+
+		# ( event x ( time, digit, polarity, task ) )
+		task = np.load( task_path )
+		# ( response x ( letter, time ) )
+		resp = np.load( resp_path )
+		# we don't care about which key
+		resp = np.array( [ resps[ "time" ] for resps in resp ] )
+		# ( event x ( time, block, block type, coherence, orientation, contrast, generated ) )
+		seq = np.load( seq_path )
+
+		for ( i_bin, t_start ) in enumerate( run_time_bins ):
+
+			# Q1: was there an active target during this bin?
+			#  - find the active task event as the last event that has an onset time less than the start
+			#    of the current bin
+			i_task = np.where( t_start >= task[ :, 0 ] )[ 0 ][ -1 ]
+			task_data[ i_run, i_bin, 0 ] = task[ i_task, 3 ]
+
+			# Q2: did the subject respond during the bin?
+			#  - find the first response prior to the current bin
+			i_resp = np.where( t_start >= resp )[ 0 ]
+			#  - only included if it is less than the bin distance away
+			if ( i_resp.size > 0 ) and ( t_start - resp[ i_resp[ -1 ] ] ) < conf[ "ana" ][ "task_bin_res_s" ]:
+				task_data[ i_run, i_bin, 1 ] = 1
+			else:
+				task_data[ i_run, i_bin, 1 ] = 0
+
+			# Q3: what was the stimulus condition during this bin?
+			i_seq = np.where( t_start >= seq[ :, 0 ] )[ 0 ]
+			if ( i_seq.size > 0 ):
+				task_data[ i_run, i_bin, 2 ] = seq[ i_seq[ -1 ], 2 ]
+
+	# now it can be saved
+	np.save( paths.task.data.full( ".npy" ), task_data )
+
+	# ... before analysing performance
+	n_cond = len( conf[ "stim" ][ "coh_levels" ] ) + 1
+
+	task_perf = np.empty( ( conf[ "ana" ][ "task_perf_n_bins" ],
+	                        n_cond
+	                      )
+	                    )
+	task_perf.fill( np.NAN )
+
+	for i_bin in xrange( conf[ "ana" ][ "task_perf_n_bins" ] ):
+
+		bin_data = []
+
+		for i_run in xrange( conf[ "subj" ][ "n_runs" ] ):
+
+			run_data = task_data[ i_run, :, : ]
+
+			# we lose some events because of the time shifting
+			run_shft_data = np.empty( ( run_data.shape[ 0 ] - i_bin, run_data.shape[ 1 ] ) )
+			run_shft_data.fill( np.NAN )
+
+			if i_bin > 0:
+				run_shft_data[ :, 0 ] = run_data[ :-i_bin, 0 ]
+				run_shft_data[ :, 2 ] = run_data[ :-i_bin:, 2 ]
+
+				run_shft_data[ :, 1 ] = run_data[ i_bin:, 1 ]
+
+			else:
+				run_shft_data = run_data
+
+			bin_data.append( run_shft_data )
+
+		bin_data = np.vstack( bin_data )
+
+		task_perf[ i_bin, : ] = [ np.corrcoef( bin_data[ bin_data[ :, 2 ] == i_cond, :2 ].T )[ 1, 0 ]
+		                          for i_cond in xrange( n_cond )
+		                        ]
+
+	assert( np.sum( np.isnan( task_perf ) ) == 0 )
+
+	np.save( paths.task.perf.full( ".npy" ), task_perf )

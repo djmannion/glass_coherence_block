@@ -167,10 +167,10 @@ Converts the fitted beta values from the GLM to percent signal change::
 ROI preparation
 ~~~~~~~~~~~~~~~
 
-First, make symlinks within the ``rois`` directory to the visual localiser ROI datasets::
+First, make copies, within the ``rois`` directory, of the visual localiser ROI datasets::
 
-    ln -s /labs/olmanlab/FsAnatomy/sXXXX/rois/sXXXX_vis_loc-rois_lh-full.niml.dset sXXXX_glass_coherence_block-vis_loc_rois_lh-full.niml.dset
-    ln -s /labs/olmanlab/FsAnatomy/sXXXX/rois/sXXXX_vis_loc-rois_rh-full.niml.dset sXXXX_glass_coherence_block-vis_loc_rois_rh-full.niml.dset
+    3dcopy /labs/olmanlab/FsAnatomy/sXXXX/rois/sXXXX_vis_loc-rois_lh-full.niml.dset sXXXX_glass_coherence_block-vis_loc_rois_lh-full.niml.dset
+    3dcopy /labs/olmanlab/FsAnatomy/sXXXX/rois/sXXXX_vis_loc-rois_rh-full.niml.dset sXXXX_glass_coherence_block-vis_loc_rois_rh-full.niml.dset
 
 Guided by the localiser mask and the visual localisers, draw ROIs for the dorsal (value of 100) and ventral (value of 200) 'responsive areas'.
 Save these as ``lh_dra``, ``lh_vra``, ``rh_dra``, and ``rh_vra`` in the ``rois`` directory.
