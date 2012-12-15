@@ -8,6 +8,32 @@ import scipy.stats
 
 import glass_coherence_block.analysis.paths
 
+
+def write_mask_cmap( rois, cmap_path ):
+	"""Writes a SUMA colourmap for the mask display"""
+
+	import brewer2mpl
+
+	map_name = "Dark2"
+	map_type = "qualitative"
+
+	n_cols = len( rois )
+
+	cols = brewer2mpl.get_map( "Dark2", "qualitative", n_cols ).mpl_colors
+
+	i_rois = [ int( roi[ 1 ] ) for roi in rois ]
+
+	cmap = np.zeros( ( max( i_rois ), 3 ) )
+
+	for ( i, i_roi ) in enumerate( i_rois ):
+
+		cmap[ i_roi - 1, : ] = cols[ i ]
+
+	np.savetxt( cmap_path, cmap )
+
+
+
+
 def _set_defaults():
 	"""Set some sane defaults for figures.
 	"""

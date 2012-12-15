@@ -23,6 +23,7 @@ def get_subj_paths( conf ):
 	paths.ana = _get_ana_paths( conf, paths )
 	paths.logs = _get_log_paths( conf, paths )
 	paths.roi = _get_roi_paths( conf, paths )
+	paths.task = _get_task_paths( conf, paths )
 
 	return paths
 
@@ -94,6 +95,24 @@ def _get_log_paths( conf, paths ):
 	logs.resp = logs.base + ( file_base + "resp" )
 
 	return logs
+
+
+def _get_task_paths( conf, paths ):
+	"""Get the paths for the task analysis"""
+
+	task = fmri_tools.paths.PathsHandler()
+
+	task.base = paths.base / "task"
+
+	subj_id = conf[ "subj" ][ "subj_id" ]
+	exp_id = conf[ "exp" ][ "id" ]
+
+	file_base = "{subj_id:s}_{exp_id:s}_task_".format( subj_id = subj_id, exp_id = exp_id )
+
+	task.perf = task.base + ( file_base + "perf" )
+	task.data = task.base + ( file_base + "data" )
+
+	return task
 
 
 def get_group_paths( conf ):
