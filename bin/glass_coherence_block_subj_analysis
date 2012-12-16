@@ -43,7 +43,8 @@ def main():
 	               "loc_mask",
 	               "beta_to_psc",
 	               "roi_prep",
-	               "roi_xtr"
+	               "roi_xtr",
+	               "task"
 	             )
 
 	parser.add_argument( "proc_step",
@@ -91,6 +92,9 @@ def main():
 
 	elif args.proc_step == "roi_xtr":
 		glass_coherence_block.analysis.subj_analysis.roi_xtr( conf, paths )
+
+	elif args.proc_step == "task":
+		glass_coherence_block.analysis.subj_analysis.task( conf, paths )
 
 	else:
 		print "Not implemented"
