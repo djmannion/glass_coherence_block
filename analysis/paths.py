@@ -107,7 +107,7 @@ def _get_task_paths( conf, paths ):
 	subj_id = conf[ "subj" ][ "subj_id" ]
 	exp_id = conf[ "exp" ][ "id" ]
 
-	file_base = "{subj_id:s}_{exp_id:s}_task_".format( subj_id = subj_id, exp_id = exp_id )
+	file_base = "{subj_id:s}_{exp_id:s}-task_".format( subj_id = subj_id, exp_id = exp_id )
 
 	task.perf = task.base + ( file_base + "perf" )
 	task.data = task.base + ( file_base + "data" )

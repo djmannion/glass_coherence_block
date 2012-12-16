@@ -330,6 +330,10 @@ def roi_xtr( conf, paths ):
 def task( conf, paths ):
 	"""Analyses performance on the behavioural task"""
 
+	logger = logging.getLogger( __name__ )
+	logger.info( "Running task analysis..." )
+
+
 	# half-open interval
 	run_time_bins = np.arange( start = 0,
 	                           stop = conf[ "exp" ][ "run_full_len_s" ],
@@ -425,4 +429,18 @@ def task( conf, paths ):
 
 	assert( np.sum( np.isnan( task_perf ) ) == 0 )
 
-	np.save( paths.task.perf.full( ".npy" ), task_perf )
+	np.savetxt( paths.task.perf.full( ".txt" ), task_perf )
+
+	os.chdir( paths.task.data.dir() )
+
+	# now to save in NIML format
+	# save each condition separately
+	for i_cond in xrange( n_cond ):
+
+		cond_data = task_perf[ :, i_cond ]
+
+		cond_path = paths.task.data.full( "_{c:d}".format( c = i_cond ) )
+
+		cond_sub_paths = cond_path + "_sub"
+
+		fmri_tools.utils.array_to_niml( cond_data, cond_path, cond_sub_paths )
