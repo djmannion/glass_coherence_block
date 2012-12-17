@@ -5,6 +5,7 @@ block design fMRI experiment.
 
 from __future__ import division
 
+import os.path
 import tempfile
 
 import numpy as np
@@ -14,6 +15,118 @@ import fmri_tools.utils
 
 import glass_coherence_block.config
 import glass_coherence_block.analysis.paths
+
+
+def task_anova( conf, paths ):
+	"""Analyse the task performance across subjects."""
+
+# A,B fixed; C random;  AxB,BxC,C(A)
+	anova_type = "5"
+
+	# stimulus condition; coherences, plus 1 blank
+	n_a_levels = len( conf[ "stim" ][ "coh_levels" ] ) + 1
+
+	# time bin
+	n_b_levels = conf[ "ana" ][ "task_perf_n_bins" ]
+
+	# subjects
+	n_c_levels = len( conf[ "all_subj" ] )
+
+	# design spec
+	cmd = [ "3dANOVA3",
+	        "-DAFNI_FLOATIZE=YES",  # why not
+	        "-overwrite",
+	        "-type", "5",  # B fixed; C random;  AxB,BxC,C(A)
+	        "-alevels", "{n:d}".format( n = n_a_levels ),
+	        "-blevels", "{n:d}".format( n = n_b_levels ),
+	        "-clevels", "{n:d}".format( n = n_c_levels ),
+	      ]
+
+	bucket = paths.task_anova.full( ".niml.dset" )
+
+	# analysis / output options
+	cmd.extend( [ "-fa", "cond",  # main effect of condition
+	              "-fb", "time",  # main effect of time bin
+	              "-fab", "cond_x_time",  # interaction between condition and time bin
+	              "-bucket", bucket
+	            ]
+	          )
+
+	# data input
+	subj_ids = conf[ "all_subj" ].keys()
+
+	for i_c in xrange( n_c_levels ):
+
+		subj_id = subj_ids[ i_c ]
+
+		subj_conf = glass_coherence_block.config.get_conf( subj_id )
+		subj_paths = glass_coherence_block.analysis.paths.get_subj_paths( subj_conf )
+
+		for i_a in xrange( n_a_levels ):
+			for i_b in xrange( n_b_levels ):
+
+				dset_path = subj_paths.task.data.full( "_{a:d}.niml.dset[{b:d}]".format( a = i_a,
+				                                                                         b = i_b
+				                                                                       )
+				                                     )
+
+				cmd.extend( [ "-dset",
+				              "{a:d}".format( a = ( i_a + 1 ) ),
+				              "{b:d}".format( b = ( i_b + 1 ) ),
+				              "{c:d}".format( c = ( i_c + 1 ) ),
+				              dset_path
+				            ]
+				          )
+
+	os.chdir( paths.base.full() )
+
+	fmri_tools.utils.run_cmd( " ".join( cmd ) )
+
+	# now, to print a summary
+	summ = "Summary:\n"
+
+	dof_summ = fmri_tools.utils.get_dset_dof( bucket )
+
+	dof_summ = [ dof_summ[ i ] for i in [ 1, 3, 5 ] ]
+
+	results_cmd = [ "3dmaskdump",
+	                "-noijk",
+	                "-nozero",
+	                bucket
+	              ]
+
+	results = fmri_tools.utils.run_cmd( " ".join( results_cmd ) )
+	results = results.std_out.strip().split( " " )
+
+	results = [ results[ i ] for i in [ 1, 3, 5 ] ]
+
+	dof = [ dof_summ[ i ].partition( "(" )[ -1 ].strip( ")" ).split( "," )
+	        for i in [ 0, 1, 2 ]
+	      ]
+
+	p = [ fmri_tools.utils.get_f_p( float( results[ i ] ),
+	                                float( dof[ i ][ 0 ] ),
+	                                float( dof[ i ][ 1 ] )
+	                              )
+	      for i in xrange( 3 )
+	    ]
+
+	# main effect of condition
+	summ += ( "\tMain effect of condition: " +
+	          dof_summ[ 0 ] + " = " + results[ 0 ] + ", p = " + p[ 0 ] + "\n"
+	        )
+
+	# main effect of bin
+	summ += ( "\tMain effect of bin: " +
+	          dof_summ[ 1 ] + " = " + results[ 1 ] + ", p = " + p[ 1 ] + "\n"
+	        )
+
+	# condition x bin
+	summ += ( "\tInteraction between condition and bin: " +
+	          dof_summ[ 2 ] + " = " + results[ 2 ] + ", p = " + p[ 2 ] + "\n"
+	        )
+
+	fmri_tools.utils.write_to_log( summ )
 
 
 def roi_mean( paths, conf ):

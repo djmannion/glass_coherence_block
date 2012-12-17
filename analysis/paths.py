@@ -118,20 +118,12 @@ def _get_task_paths( conf, paths ):
 def get_group_paths( conf ):
 	"""Get the path structure for the group analysis"""
 
-	paths = {}
+	grp = fmri_tools.paths.PathsHandler()
 
-	paths[ "study" ] = _get_study_paths()
+	grp.base = fmri_tools.paths.Path( "/labs/olmanlab/Data7T/GlassCoherenceBlock/group_data" )
 
-	paths[ "base_dir" ] = os.path.join( paths[ "study" ][ "base_dir" ],
-	                                    "group_data"
-	                                  )
+	grp.log = grp.base + "glass_coherence_block-log.log"
 
-	paths[ "roi_mean" ] = os.path.join( paths[ "base_dir" ],
-	                                    "glass_coherence_block_group"
-	                                  )
+	grp.task_anova = grp.base + "glass_coherence_block-task"
 
-	paths[ "roi_stat" ] = os.path.join( paths[ "base_dir" ],
-	                                    "glass_coherence_block_group-stat"
-	                                  )
-
-	return paths
+	return grp
