@@ -59,7 +59,7 @@ def _get_ana_conf( conf ):
 	n_perm = 10 ** 4
 
 	task_bin_res_s = 0.1
-	task_perf_n_bins = 20
+	task_perf_n_bins = 15
 
 	ana_conf = { "rois" : rois,
 	             "vl_rois" : vl_rois,

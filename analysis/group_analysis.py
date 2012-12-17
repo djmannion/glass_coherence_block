@@ -23,8 +23,8 @@ def task_anova( conf, paths ):
 # A,B fixed; C random;  AxB,BxC,C(A)
 	anova_type = "5"
 
-	# stimulus condition; coherences, plus 1 blank
-	n_a_levels = len( conf[ "stim" ][ "coh_levels" ] ) + 1
+	# stimulus conditions
+	n_a_levels = len( conf[ "stim" ][ "coh_levels" ] )
 
 	# time bin
 	n_b_levels = conf[ "ana" ][ "task_perf_n_bins" ]
