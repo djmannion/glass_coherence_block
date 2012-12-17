@@ -390,7 +390,7 @@ def task( conf, paths ):
 	np.save( paths.task.data.full( ".npy" ), task_data )
 
 	# ... before analysing performance
-	n_cond = len( conf[ "stim" ][ "coh_levels" ] ) + 1
+	n_cond = len( conf[ "stim" ][ "coh_levels" ] )
 
 	task_perf = np.empty( ( conf[ "ana" ][ "task_perf_n_bins" ],
 	                        n_cond
@@ -424,7 +424,7 @@ def task( conf, paths ):
 		bin_data = np.vstack( bin_data )
 
 		task_perf[ i_bin, : ] = [ np.corrcoef( bin_data[ bin_data[ :, 2 ] == i_cond, :2 ].T )[ 1, 0 ]
-		                          for i_cond in xrange( n_cond )
+		                          for i_cond in np.arange( 1, n_cond + 1 )
 		                        ]
 
 	assert( np.sum( np.isnan( task_perf ) ) == 0 )

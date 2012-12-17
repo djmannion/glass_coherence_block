@@ -32,22 +32,102 @@ def write_mask_cmap( rois, cmap_path ):
 	np.savetxt( cmap_path, cmap )
 
 
+def plot_task_perf( conf, paths, save_path = None ):
+	"""Plot the task performance"""
+
+	cond_labels = [ "0", "33", "66", "100" ]
+
+	n_cond = len( cond_labels )
+
+	n_bins = conf[ "ana" ][ "task_perf_n_bins" ]
+
+	time_bins = np.arange( start = 0,
+	                       stop = conf[ "ana" ][ "task_bin_res_s" ] * n_bins,
+	                       step = conf[ "ana" ][ "task_bin_res_s" ]
+	                     )
+
+	bin_offsets = np.array( [ -0.06, -0.02, 0.02, 0.06 ] ) / 2.5
+
+	subj_ids = conf[ "all_subj" ].keys()
+
+	n_subj = len( subj_ids )
+
+	data = np.empty( ( n_subj, n_bins, n_cond ) )
+	data.fill( np.NAN )
+
+	for ( i_subj, subj_id ) in enumerate( subj_ids ):
+
+		subj_conf = glass_coherence_block.config.get_conf( subj_id )
+		subj_paths = glass_coherence_block.analysis.paths.get_subj_paths( subj_conf )
+
+		data[ i_subj, ... ] = np.loadtxt( subj_paths.task.perf.full( ".txt" ) )
+
+	# average over subjects; mean is 20 x 5
+	mean = np.mean( data, axis = 0 )
+
+	# standard error
+	std_error = np.std( data, axis = 0 ) / np.sqrt( n_subj )
+
+	_set_defaults()
+
+	fig = plt.figure()
+
+	fig.set_size_inches( 3.34646, 3.34646 * 0.75, forward = False )
+
+	ax = fig.gca()
+	ax.hold( True )
+
+	for i_cond in xrange( n_cond ):
+
+		x = time_bins + bin_offsets[ i_cond ]
+
+		_ = [ ax.plot( [ x[ i ] ] * 2, [ mean[ i, i_cond ] - std_error[ i, i_cond ],
+		                                 mean[ i, i_cond ] + std_error[ i, i_cond ]
+		                               ],
+		               c = [ 0.5 ] * 3
+		             )
+		      for i in xrange( mean.shape[ 0 ] )
+		    ]
+
+		ax.scatter( x,
+		            mean[ :, i_cond ],
+		            marker = "s",
+		            edgecolor = [ 0 ] * 3,
+		            facecolor = [ 0 ] * 4,
+		            s = 5,
+		            zorder = 100
+		          )
+
+	_cleanup_fig( ax )
+
+	ax.set_xlim( ( -0.05, time_bins[ -1 ] + 0.05 ) )
+
+	ax.set_xlabel( "Time from target onset (s)" )
+	ax.set_ylabel( "Correlation (r)" )
+
+	fig.tight_layout( pad = 0.5 )
+
+	if save_path:
+		fig.savefig( save_path )
+	else:
+		fig.show()
+
 
 
 def _set_defaults():
 	"""Set some sane defaults for figures.
 	"""
 
-	params = { 'axes.labelsize': 8,
+	params = { 'axes.labelsize': 9 * ( 1 / 1.25 ),
 	           'axes.titlesize' : 10,
 	           'font.family' : 'Arial',
 	           'font.sans-serif' : 'Helvetica',
 	           'text.fontsize': 12,
 	           'legend.fontsize': 7,
-	           'xtick.labelsize': 5,
+	           'xtick.labelsize': 8 * ( 1 / 1.25 ),
 	           'xtick.direction' : 'out',
 	           'xtick.major.size' : 2,
-	           'ytick.labelsize': 5,
+	           'ytick.labelsize': 8 * ( 1 / 1.25 ),
 	           'ytick.direction' : 'out',
 	           'ytick.major.size' : 2
 	         }
