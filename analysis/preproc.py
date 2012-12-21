@@ -199,7 +199,7 @@ def design_prep( conf, paths ):
 		# script
 		run_seq = np.load( paths.logs.seq.full( "_{run:d}.npy".format( run = ( i_run + 1 ) ) ) )
 
-		( n_evt, n_params ) = run_seq.shape
+		( n_evt, _ ) = run_seq.shape
 
 		# loop through each event in the sequence
 		for i_evt in xrange( n_evt ):

@@ -38,12 +38,11 @@ def glm( conf, paths ):
 	             ]
 
 	# contrast coefficients; each column corresponds to a condition
-	con_coef = [ [ +1, +1, +1, +1 ],  # localiser
-	             [ -3, -1, +1, +3 ]   # linear
+	con_coef = [ [ +1, +1, +1, +1 ]  # localiser
 	           ]
 
 	# label for each contrast
-	con_lbl = [ "stim", "lin" ]
+	con_lbl = [ "stim" ]
 
 	# put the contrasts into an AFNI-aware format
 	con_str = [ "SYM: " +
@@ -54,7 +53,7 @@ def glm( conf, paths ):
 	            for coef in con_coef
 	          ]
 
-	# minus one because the range is inclusive
+	# minus one because the range is inclusive and starts at zero
 	censor_vols = conf[ "exp" ][ "pre_len_s" ] / conf[ "acq" ][ "tr_s" ] - 1
 
 	# in AFNI-aware format; (runs):start-end
@@ -150,6 +149,7 @@ def loc_mask( conf, paths ):
 	logger.info( "Running localising mask creation..." )
 
 	# these are the indices into the beta files for the data we want to convert
+	# checked below...
 	loc_brick = "[10]"
 
 	for hemi in [ "lh", "rh" ]:
@@ -188,6 +188,7 @@ def beta_to_psc( conf, paths ):
 	logger.info( "Running beta to PSC conversion..." )
 
 	# these are the indices into the beta files for the data we want to convert
+	# checked below...
 	beta_bricks = "[60,61,62,63]"
 
 	for hemi in [ "lh", "rh" ]:
@@ -237,6 +238,7 @@ def roi_prep( conf, paths ):
 		vl_path = paths.roi.vl.full( "_{hemi:s}-full.niml.dset".format( hemi = hemi ) )
 		vl_sub_path = paths.roi.vl_subset.full( "_{hemi:s}-full.niml.dset".format( hemi = hemi ) )
 
+		# this means to only include an ROI if it is on our list of visual localiser rois
 		vl_expr = ( "'a*amongst(a," +
 		            ",".join( [ i_roi
 		                        for ( _, i_roi ) in conf[ "ana" ][ "vl_rois" ]
@@ -272,6 +274,7 @@ def roi_prep( conf, paths ):
 		# now we want to combine the vis_loc and the mask ROI datasets
 		roi_path = paths.roi.rois.full( "_{hemi:s}-full.niml.dset".format( hemi = hemi ) )
 
+		# this gives preference to visual localiser ROIs over mask ROIs
 		cmb_expr = "'a+(iszero(a)*b)'"
 
 		cmb_cmd = [ "3dcalc",
@@ -324,15 +327,53 @@ def roi_xtr( conf, paths ):
 
 		fmri_tools.utils.run_cmd( " ".join( xtr_cmd ) )
 
+	# now to combine over hemispheres
+
+	logger.info( "\tCombining across hemispherse" )
+
+	txt_cmd_path = paths.roi.psc.full( ".txt" )
+
+	# stack nodes-wise
+	roi_data = np.vstack( [ np.loadtxt( paths.roi.psc.full( "_{h:s}.txt".format( h = hemi ) ) )
+	                        for hemi in [ "lh", "rh" ]
+	                      ]
+	                    )
+
+	# ... and resave
+	np.savetxt( txt_cmd_path, roi_data )
+
+	# we also want to run the contrasts on each node
+
+	logger.info( "\tComputing contrast coefficients" )
+
+	roi_con_coef = np.empty( ( roi_data.shape[ 0 ],  # n nodes
+	                           1 + len( conf[ "ana" ][ "con_names" ] )
+	                         )
+	                       )
+	roi_con_coef.fill( np.NAN )
+
+	roi_con_coef[ :, 0 ] = roi_data[ :, 0 ]
+
+	for ( i_con, con_coef ) in enumerate( conf[ "ana" ][ "con_coefs" ] ):
+
+		con_vals = np.sum( roi_data[ :, 1: ] * con_coef, axis = 1 )
+
+		roi_con_coef[ :, i_con + 1 ] = con_vals
+
+	assert( np.sum( np.isnan( roi_con_coef ) ) == 0 )
+
+	con_path = paths.roi.con_coef.full( ".txt" )
+
+	np.savetxt( con_path, roi_con_coef )
+
 	os.chdir( start_dir )
 
 
-def task( conf, paths ):
+def proc_task( conf, paths ):
 	"""Analyses performance on the behavioural task"""
 
 	logger = logging.getLogger( __name__ )
 	logger.info( "Running task analysis..." )
-
 
 	# half-open interval
 	run_time_bins = np.arange( start = 0,
@@ -376,7 +417,9 @@ def task( conf, paths ):
 			#  - find the first response prior to the current bin
 			i_resp = np.where( t_start >= resp )[ 0 ]
 			#  - only included if it is less than the bin distance away
-			if ( i_resp.size > 0 ) and ( t_start - resp[ i_resp[ -1 ] ] ) < conf[ "ana" ][ "task_bin_res_s" ]:
+			if ( ( i_resp.size > 0 ) and
+			     ( t_start - resp[ i_resp[ -1 ] ] ) < conf[ "ana" ][ "task_bin_res_s" ]
+			   ):
 				task_data[ i_run, i_bin, 1 ] = 1
 			else:
 				task_data[ i_run, i_bin, 1 ] = 0

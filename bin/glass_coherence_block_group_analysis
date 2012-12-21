@@ -33,8 +33,8 @@ def main():
 	                                )
 
 	proc_steps = ( "task",
-	               "loc_mask",
-	               "beta_to_psc",
+	               "roi_prep",
+	               "roi_perm",
 	               "roi_prep",
 	               "roi_xtr",
 	             )
@@ -69,11 +69,11 @@ def main():
 	if args.proc_step == "task":
 		glass_coherence_block.analysis.group_analysis.task_anova( conf, paths )
 
-	elif args.proc_step == "loc_mask":
-		glass_coherence_block.analysis.subj_analysis.loc_mask( conf, paths )
+	elif args.proc_step == "roi_prep":
+		glass_coherence_block.analysis.group_analysis.roi_prep( conf, paths )
 
-	elif args.proc_step == "beta_to_psc":
-		glass_coherence_block.analysis.subj_analysis.beta_to_psc( conf, paths )
+	elif args.proc_step == "roi_perm":
+		glass_coherence_block.analysis.group_analysis.roi_perm( conf, paths )
 
 	elif args.proc_step == "roi_prep":
 		glass_coherence_block.analysis.subj_analysis.roi_prep( conf, paths )

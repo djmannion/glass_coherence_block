@@ -75,6 +75,8 @@ def _get_roi_paths( conf, paths ):
 
 	roi.psc = roi.base + ( file_base + "psc" )
 
+	roi.con_coef = roi.base + ( file_base + "con_coef" )
+
 	return roi
 
 
@@ -125,5 +127,9 @@ def get_group_paths( conf ):
 	grp.log = grp.base + "glass_coherence_block-log.log"
 
 	grp.task_anova = grp.base + "glass_coherence_block-task"
+
+	grp.psc = grp.base + "glass_coherence_block-psc"
+
+	grp.con_data = grp.base + "glass_coherence_block-con_data"
 
 	return grp

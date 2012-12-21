@@ -94,7 +94,7 @@ def main():
 		glass_coherence_block.analysis.subj_analysis.roi_xtr( conf, paths )
 
 	elif args.proc_step == "task":
-		glass_coherence_block.analysis.subj_analysis.task( conf, paths )
+		glass_coherence_block.analysis.subj_analysis.proc_task( conf, paths )
 
 	else:
 		print "Not implemented"
