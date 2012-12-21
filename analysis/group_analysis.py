@@ -7,6 +7,7 @@ from __future__ import division
 
 import os.path
 import tempfile
+import logging
 
 import numpy as np
 import scipy.stats
@@ -19,6 +20,9 @@ import glass_coherence_block.analysis.paths
 
 def task_anova( conf, paths ):
 	"""Analyse the task performance across subjects."""
+
+	logger = logging.getLogger( __name__ )
+	logger.info( "Running task statistics ..." )
 
 # A,B fixed; C random;  AxB,BxC,C(A)
 	anova_type = "5"
@@ -36,7 +40,7 @@ def task_anova( conf, paths ):
 	cmd = [ "3dANOVA3",
 	        "-DAFNI_FLOATIZE=YES",  # why not
 	        "-overwrite",
-	        "-type", "5",  # B fixed; C random;  AxB,BxC,C(A)
+	        "-type", anova_type,
 	        "-alevels", "{n:d}".format( n = n_a_levels ),
 	        "-blevels", "{n:d}".format( n = n_b_levels ),
 	        "-clevels", "{n:d}".format( n = n_c_levels ),
@@ -129,167 +133,105 @@ def task_anova( conf, paths ):
 	fmri_tools.utils.write_to_log( summ )
 
 
-def roi_mean( paths, conf ):
-	"""Average the nodes in each subjects ROIs"""
+def roi_prep( conf, paths ):
+	"""Prepare the ROI values"""
 
-	roi_names = [ roi_info for ( roi_info, _ ) in conf[ "ana" ][ "rois" ] ]
+	logger = logging.getLogger( __name__ )
+	logger.info( "Running ROI preparation..." )
 
-	for roi_name in roi_names:
+	n_subj = len( conf[ "all_subj" ] )
+	n_cond = len( conf[ "stim" ][ "coh_levels" ] )
 
-		# roi summary file, to write; one row per subject
-		roi_path = "%s-%s.txt" % ( paths[ "roi_mean" ], roi_name )
+	for ( roi_name, roi_id ) in conf[ "ana" ][ "rois" ]:
 
-		roi_file = open( roi_path, "w+" )
+		logger.info( "\tConsidering {r:s}...".format( r = roi_name ) )
 
-		for subj_id in conf[ "all_subj" ]:
+		psc_vals = np.empty( ( n_subj, n_cond ) )
+		psc_vals.fill( np.NAN )
+
+		for ( i_subj, subj_id ) in enumerate( conf[ "all_subj" ] ):
 
 			subj_conf = glass_coherence_block.config.get_conf( subj_id )
 			subj_paths = glass_coherence_block.analysis.paths.get_subj_paths( subj_conf )
 
-			roi_data = []
+			# nodes x ( roi id, .. )
+			subj_psc = np.loadtxt( subj_paths.roi.psc.full( ".txt" ) )
 
-			for hemi in [ "lh", "rh" ]:
+			i_roi_nodes = ( subj_psc[ :, 0 ] == int( roi_id ) )
 
-				# the file containing the psc values for this subject, ROI, and hemi
-				roi_psc_file = "%s_%s_%s.txt" % ( subj_paths[ "rois" ][ "psc" ],
-				                                  roi_name,
-				                                  hemi
-				                                )
+			subj_psc_mean = np.mean( subj_psc[ i_roi_nodes, 1: ], axis = 0 )
 
-				roi_data.append( np.loadtxt( roi_psc_file ) )
+			psc_vals[ i_subj, : ] = subj_psc_mean
 
-			# concatenate the two hemisphere lists over nodes
-			roi_data = np.vstack( roi_data )
+		assert( np.sum( np.isnan( psc_vals ) ) == 0 )
 
-			# average over nodes
-			roi_data = np.mean( roi_data, axis = 0 )
+		psc_path = paths.psc.full( "_{roi:s}.txt".format( roi = roi_name ) )
 
-			# subtract the average over conditions
-			roi_data -= np.mean( roi_data )
+		# save
+		np.savetxt( psc_path, psc_vals )
 
-			# this is saving at the same precision as savetxt
-			subj_roi_txt = ( subj_id +
-			                 "\t%.18e\t%.18e\t%.18e\t%.18e\n" % tuple( roi_data )
-			               )
+		# now to normalise by subtracting the subject mean
+		norm_psc_vals = np.empty( psc_vals.shape )
+		norm_psc_vals.fill( np.NAN )
 
-			roi_file.write( subj_roi_txt )
+		# could use expansion, but just to be safe do it the verbose way
+		for i_subj in xrange( n_subj ):
 
-		roi_file.close()
+			subj_mean = np.mean( psc_vals[ i_subj, : ] )
+
+			norm_psc_vals[ i_subj, : ] = ( psc_vals[ i_subj, : ] - subj_mean )
+
+		assert( np.sum( np.isnan( norm_psc_vals ) ) == 0 )
+
+		norm_psc_path = paths.psc.full( "_{roi:s}-norm.txt".format( roi = roi_name ) )
+
+		np.savetxt( norm_psc_path, norm_psc_vals )
 
 
-def roi_stat( paths, conf ):
+
+def roi_perm( conf, paths ):
 	"""Permutation test on the ROI values"""
 
-	roi_names = [ roi_info for ( roi_info, _ ) in conf[ "ana" ][ "rois" ] ]
+	logger = logging.getLogger( __name__ )
+	logger.info( "Running ROI permutations..." )
 
-	n_rois = len( roi_names )
+	n_subj = len( conf[ "all_subj" ] )
+	n_cond = len( conf[ "stim" ][ "coh_levels" ] )
 
-	trends = np.array( [ [ -3, -1, +1, +3 ],  # linear
-	                     [ +1, -1, -1, +1 ],  # quadratic
-	                     [ -1, +3, -3, +1 ]   # cubic
-	                   ]
-	                 )
-
-	( n_trends, _ ) = trends.shape
-
-	# just check that they all sum to zero, like they should
-	assert( np.all( np.sum( trends, axis = 1 ) == 0 ) )
-
+	n_con = len( conf[ "ana" ][ "con_coefs" ] )
 	n_perm = conf[ "ana" ][ "n_perm" ]
 
-	# roi x ( mean, sem, p, q ) x trend
-	stat_data = np.empty( ( n_rois, 4, n_trends ) )
+	roi_seeds = conf[ "ana" ][ "roi_seeds" ]
 
-	roi_info = zip( roi_names, conf[ "ana" ][ "roi_seeds" ] )
+	for ( ( roi_name, _ ), roi_seed ) in zip( conf[ "ana" ][ "rois" ], roi_seeds ):
 
-	# iterate over each ROI
-	for ( i_roi, ( roi_name, roi_seed ) ) in enumerate( roi_info ):
+		logger.info( "\tConsidering {r:s}...".format( r = roi_name ) )
 
-		roi_path = "%s-%s.txt" % ( paths[ "roi_mean" ], roi_name )
+		# might as well used normed; shouldn't matter
+		psc = np.loadtxt( paths.psc.full( "_{roi:s}-norm.txt".format( roi = roi_name ) ) )
 
-		# first column is subject id, so don't load it
-		roi_data = np.loadtxt( roi_path, usecols = [ 1, 2, 3, 4 ] )
+		con_data = np.empty( ( n_perm + 1, n_con ) )
+		con_data.fill( np.NAN )
 
-		( n_subj, n_cond ) = roi_data.shape
-
-		# set the seed of the random number generator to a known value; subsequent
-		# random calls will be reproducible
 		np.random.seed( roi_seed )
 
-		# initialise the permutation data container
-		perm_trend = np.empty( ( n_perm, n_trends ) )
-		perm_trend.fill( np.NAN )
+		# first, handle the unpermuted data
+		con_data[ 0, : ] = [ np.sum( np.mean( psc, axis = 0 ) * con_coef )
+		                     for con_coef in conf[ "ana" ][ "con_coefs" ]
+		                   ]
 
-		# iterate over each permutation
+		# now the permuted
 		for i_perm in xrange( n_perm ):
 
-			# for each subject's data, randomly permute the condition indices
-			# (without replacement)
-			perm_data = [ roi_data[ i_subj, np.random.permutation( n_cond ) ]
-			              for i_subj in xrange( n_subj )
-			            ]
+			perm_psc = [ psc[ i_subj, np.random.permutation( n_cond ) ]
+			             for i_subj in xrange( n_subj )
+			           ]
 
-			# put in a useful form
-			perm_data = np.vstack( perm_data )
+			con_data[ i_perm + 1, : ] = [ np.sum( np.mean( perm_psc, axis = 0 ) * con_coef )
+			                              for con_coef in conf[ "ana" ][ "con_coefs" ]
+			                            ]
 
-			for ( i_trend, trend_coef ) in enumerate( trends ):
+		# now to save
+		con_data_path = paths.con_data.full( "_{roi:s}.txt".format( roi = roi_name ) )
 
-				# multiply by the trend coefficients, then sum over conditions
-				trend_data = np.sum( perm_data * trend_coef, axis = 1 )
-
-				# average over subjects as the statistic
-				perm_trend[ i_perm, i_trend ] = np.mean( trend_data )
-
-		# now we have our permutation distribution, we can calculate a p-value for
-		# the measured values
-
-		# first we need to know the measured trend values
-		for ( i_trend, trend_coef ) in enumerate( trends ):
-
-			# as above
-			trend_data = np.sum( roi_data * trend_coef, axis = 1 )
-
-			stat_data[ i_roi, 0, i_trend ] = np.mean( trend_data )
-
-			stat_data[ i_roi, 1, i_trend ] = scipy.stats.sem( trend_data )
-
-			# use the absolute value to get a two-tailed p
-			p = scipy.stats.percentileofscore( np.abs( perm_trend[ :, i_trend ] ),
-			                                   np.abs( stat_data[ i_roi, 0, i_trend ] )
-			                                 )
-
-			stat_data[ i_roi, 2, i_trend ] = ( 100 - p ) / 100.0
-
-	# now we want to convert all the p's into q's, over ROIs
-	for i_trend in xrange( n_trends ):
-
-		p_file = tempfile.NamedTemporaryFile()
-		q_file = tempfile.NamedTemporaryFile()
-
-		# save the p data for all the ROIs for this trend
-		np.savetxt( p_file.name, stat_data[ :, 2, i_trend ] )
-
-		# use AFNI's '3dFDR' to compute q values
-		fdr_cmd = [ "3dFDR",
-		            "-input1D", p_file.name,
-		            "-output", q_file.name,
-		            "-qval",
-		            "-new",
-		            "-overwrite"
-		          ]
-
-		fmri_tools.utils.run_cmd( fdr_cmd,
-		                          env = fmri_tools.utils.get_env()
-		                        )
-
-		# load the outputted q values
-		q_vals = np.loadtxt( q_file.name )
-
-		stat_data[ :, 3, i_trend ] = q_vals
-
-	for ( i_roi, roi_name ) in enumerate( roi_names ):
-
-		np.savetxt( "%s-%s.txt" % ( paths[ "roi_stat" ], roi_name ),
-		            stat_data[ i_roi, :, : ]
-		          )
-
+		np.savetxt( con_data_path, con_data )
