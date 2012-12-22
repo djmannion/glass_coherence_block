@@ -202,7 +202,7 @@ Group processing
 ----------------
 
 ROI preparation
-^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~
 
 Aggregates the ROI data for each subject and performs normalisation::
 
@@ -210,7 +210,7 @@ Aggregates the ROI data for each subject and performs normalisation::
 
 
 Permutation testing
-^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~
 
 Computes the trend coefficients from the observed data and also generates permutation distributions::
 
@@ -218,7 +218,7 @@ Computes the trend coefficients from the observed data and also generates permut
 
 
 Statistics
-^^^^^^^^^^
+~~~~~~~~~~
 
 Generates descriptive and inferential statistics::
 
@@ -226,7 +226,7 @@ Generates descriptive and inferential statistics::
 
 
 Task
-^^^^
+~~~~
 
 Runs statistical tests on the task performance across subjects::
 
