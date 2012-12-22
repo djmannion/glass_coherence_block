@@ -42,9 +42,11 @@ def _get_ana_conf( conf ):
 
 	rois = vl_rois + mask_rois
 
+	roi_labels = [ "V1", "V2", "V3", "hMTp", "DRA", "VRA" ]
+
 	hrf_model = "SPMG1(%d)" % conf[ "exp" ][ "block_len_s" ]
 
-	poly_ord = 4
+	poly_ord = 3
 
 	loc_q = 0.001
 
@@ -73,6 +75,7 @@ def _get_ana_conf( conf ):
 	ana_conf = { "rois" : rois,
 	             "vl_rois" : vl_rois,
 	             "mask_rois" : mask_rois,
+	             "roi_labels" : roi_labels,
 	             "poly_ord" : poly_ord,
 	             "loc_q" : loc_q,
 	             "hrf_model" : hrf_model,

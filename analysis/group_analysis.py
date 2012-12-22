@@ -23,7 +23,7 @@ def task_anova( conf, paths ):
 	logger = logging.getLogger( __name__ )
 	logger.info( "Running task statistics ..." )
 
-# A,B fixed; C random;  AxB,BxC,C(A)
+	# A,B fixed; C random;  AxB,BxC,C(A)
 	anova_type = "5"
 
 	# stimulus conditions
