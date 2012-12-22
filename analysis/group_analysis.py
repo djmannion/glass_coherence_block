@@ -226,6 +226,18 @@ def roi_perm( conf, paths ):
 			             for i_subj in xrange( n_subj )
 			           ]
 
+			# for my own peace of mind, given how important this step is lets write a couple of permuted
+			# datasets to the log just to make sure its doing what i want it to
+			if i_perm in [ 0, 1 ]:
+
+				psc_str = [ " ".join( [ "{x:.3f}".format( x = x ) for x in subj_psc ] )
+				            for subj_psc in perm_psc
+				          ]
+
+				psc_str = [ "\t\t" + p_l + "\n" for p_l in psc_str ]
+
+				logger.info( "\t\tSample perm:\n" + "".join( psc_str ) )
+
 			con_data[ i_perm + 1, : ] = [ np.sum( np.mean( perm_psc, axis = 0 ) * con_coef )
 			                              for con_coef in conf[ "ana" ][ "con_coefs" ]
 			                            ]
@@ -269,15 +281,14 @@ def roi_stat( conf, paths ):
 		con_data = np.loadtxt( paths.con_data.full( "_{roi:s}.txt".format( roi = roi_name ) ) )
 
 		# this gives `p` as between 0 and 100
-		p = np.array( [ scipy.stats.percentileofscore( a = con_data[ 1:, i_con ],
-		                                               score = con_data[ 0, i_con ]
-		                                             )
-		                for i_con in xrange( con_data.shape[ 1 ] )
-		              ]
-		            )
+		p = [ scipy.stats.percentileofscore( a = con_data[ 1:, i_con ],
+		                                     score = con_data[ 0, i_con ]
+		                                   )
+		      for i_con in xrange( con_data.shape[ 1 ] )
+		    ]
 
-		# flip around, convert to [ 0, 1 ], and double (for two-tailed)
-		p = ( 100.0 - p ) / 100.0 * 2.0
+		# assign p as the smaller of the two directions, convert to [ 0, 1 ], and double (for two-tailed)
+		p = [ np.min( [ con_p, 100.0 - con_p ] ) / 100.0 * 2 for con_p in p ]
 
 		con_stat_path = paths.con_stat.full( "_{roi:s}.txt".format( roi = roi_name ) )
 
