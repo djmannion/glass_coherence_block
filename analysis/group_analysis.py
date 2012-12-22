@@ -6,7 +6,6 @@ block design fMRI experiment.
 from __future__ import division
 
 import os.path
-import tempfile
 import logging
 
 import numpy as np
@@ -235,3 +234,52 @@ def roi_perm( conf, paths ):
 		con_data_path = paths.con_data.full( "_{roi:s}.txt".format( roi = roi_name ) )
 
 		np.savetxt( con_data_path, con_data )
+
+
+def roi_stat( conf, paths ):
+	"""Descriptive and inferential stats on the ROI data"""
+
+	logger = logging.getLogger( __name__ )
+	logger.info( "Running ROI permutations..." )
+
+	for ( roi_name, _ ) in conf[ "ana" ][ "rois" ]:
+
+		logger.info( "\tConsidering {r:s}...".format( r = roi_name ) )
+
+		# descriptive stats
+		psc = np.loadtxt( paths.psc.full( "_{roi:s}-norm.txt".format( roi = roi_name ) ) )
+
+		descrip = np.empty( ( 2, psc.shape[ 1 ] ) )
+		descrip.fill( np.NAN )
+
+		# mean
+		descrip[ 0, : ] = np.mean( psc, axis = 0 )
+		# sem
+		descrip[ 1, : ] = scipy.stats.sem( psc, axis = 0 )
+
+		assert( np.sum( np.isnan( descrip ) ) == 0 )
+
+		descrip_path = paths.descrip.full( "_{roi:s}.txt".format( roi = roi_name ) )
+
+		np.savetxt( descrip_path, descrip )
+
+		# inferential stats
+
+		# ( 1 + n_perms ) x ( lin, quad, cub )
+		con_data = np.loadtxt( paths.con_data.full( "_{roi:s}.txt".format( roi = roi_name ) ) )
+
+		# this gives `p` as between 0 and 100
+		p = np.array( [ scipy.stats.percentileofscore( a = con_data[ 1:, i_con ],
+		                                               score = con_data[ 0, i_con ]
+		                                             )
+		                for i_con in xrange( con_data.shape[ 1 ] )
+		              ]
+		            )
+
+		# flip around, convert to [ 0, 1 ], and double (for two-tailed)
+		p = ( 100.0 - p ) / 100.0 * 2.0
+
+		con_stat_path = paths.con_stat.full( "_{roi:s}.txt".format( roi = roi_name ) )
+
+		np.savetxt( con_stat_path, p, "%.4f" )
+

@@ -35,8 +35,7 @@ def main():
 	proc_steps = ( "task",
 	               "roi_prep",
 	               "roi_perm",
-	               "roi_prep",
-	               "roi_xtr",
+	               "roi_stat"
 	             )
 
 	parser.add_argument( "proc_step",
@@ -75,11 +74,8 @@ def main():
 	elif args.proc_step == "roi_perm":
 		glass_coherence_block.analysis.group_analysis.roi_perm( conf, paths )
 
-	elif args.proc_step == "roi_prep":
-		glass_coherence_block.analysis.subj_analysis.roi_prep( conf, paths )
-
-	elif args.proc_step == "roi_xtr":
-		glass_coherence_block.analysis.subj_analysis.roi_xtr( conf, paths )
+	elif args.proc_step == "roi_stat":
+		glass_coherence_block.analysis.group_analysis.roi_stat( conf, paths )
 
 	else:
 		print "Not implemented"
