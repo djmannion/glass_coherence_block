@@ -32,7 +32,7 @@ def write_mask_cmap( rois, cmap_path ):
 	np.savetxt( cmap_path, cmap )
 
 
-def plot_task_perf( conf, paths, save_path = None ):
+def plot_task_perf( conf, paths, show_plot = False ):
 	"""Plot the task performance"""
 
 	cond_labels = [ "0", "33", "66", "100" ]
@@ -107,10 +107,11 @@ def plot_task_perf( conf, paths, save_path = None ):
 
 	fig.tight_layout( pad = 0.5 )
 
-	if save_path:
-		fig.savefig( save_path )
-	else:
+	if show_plot:
 		fig.show()
+	else:
+		fig_path = paths.fig_task.full( ".svg" )
+		plt.savefig( fig_path )
 
 
 
@@ -156,168 +157,66 @@ def _cleanup_fig( ax ):
 	ax.yaxis.set_ticks_position( "left" )
 
 
-def plot_subj_tc( paths, conf, save_path = None ):
-	"""Plots the raw and predicted (both adjusted) timecourses for each run and
-	ROI for a single subject"""
-
-	_set_defaults()
-
-	n_vols_per_run = ( conf[ "exp" ][ "run_len_s" ] /
-	                   conf[ "acq" ][ "tr_s" ]
-	                 )
-
-	y_head = 10
-
-	for ( roi_name, _ ) in conf[ "ana" ][ "rois" ]:
-
-		fig = plt.figure()
-
-		fig.set_size_inches( 7, 7, forward = True )
-
-		# assuming 12 runs
-		gs = gridspec.GridSpec( 4, 3 )
-
-		raw_data = [ np.loadtxt( "%s_%s_%s.txt" % ( paths[ "rois" ][ "raw_adj_tc" ],
-		                                            roi_name,
-		                                            hemi
-		                                          )
-		                       )
-		             for hemi in [ "lh", "rh" ]
-		           ]
-
-		pred_data = [ np.loadtxt( "%s_%s_%s.txt" % ( paths[ "rois" ][ "pred_adj_tc" ],
-		                                             roi_name,
-		                                             hemi
-		                                           )
-		                        )
-		             for hemi in [ "lh", "rh" ]
-		           ]
-
-		raw_data = np.vstack( raw_data )
-		pred_data = np.vstack( pred_data )
-
-		raw_data = np.mean( raw_data, axis = 0 )
-		pred_data = np.mean( pred_data, axis = 0 )
-
-		y_min = 0
-		y_max = 0
-
-		ax_list = []
-
-		for i_run in xrange( conf[ "subj" ][ "n_runs" ] ):
-
-			vol_range = np.arange( i_run * n_vols_per_run,
-			                       i_run * n_vols_per_run + n_vols_per_run
-			                     ).astype( "int" )
-
-			ax = plt.subplot( gs[ i_run ] )
-
-			ax.hold( True )
-
-			ax.plot( raw_data[ vol_range ] )
-			ax.plot( pred_data[ vol_range ] )
-
-			curr_y_max = np.max( [ np.max( raw_data[ vol_range ] ),
-			                       np.max( pred_data[ vol_range ] )
-			                     ]
-			                   )
-
-			if curr_y_max > y_max:
-				y_max = curr_y_max
-
-			curr_y_min = np.min( [ np.min( raw_data[ vol_range ] ),
-			                       np.min( pred_data[ vol_range ] )
-			                     ]
-			                   )
-
-			if curr_y_min < y_min:
-				y_min = curr_y_min
-
-			ax_list.append( ax )
-
-		for ( i_run, ax ) in enumerate( ax_list ):
-
-			ax.set_ylim( [ y_min - y_head, y_max + y_head ] )
-
-			_cleanup_fig( ax )
-
-			ax.set_title( "Run %d" % ( i_run + 1 ) )
-
-			ax.set_xlabel( "Time (volumes)" )
-
-			ax.set_ylabel( "Signal (a.u.)" )
-
-		fig.suptitle( roi_name.upper() )
-
-		plt.subplots_adjust( left = 0.09,
-		                     bottom = 0.08,
-		                     right = 0.98,
-		                     top = 0.90,
-		                     wspace = 0.39,
-		                     hspace = 0.73
-		                   )
-
-		if save_path is not None:
-
-			fig_path = "%s-%s.pdf" % ( save_path, roi_name )
-
-			plt.savefig( fig_path )
-
-	if save_path is None:
-		plt.show()
-
-
-def plot_roi_psc( paths, conf ):
+def plot_psc( conf, paths, show_plot = False ):
 	"""Plot the PSC for each ROI"""
-
-	roi_order = [ "V1", "V2", "V3",
-	              "V3AB", "LO1", "LO2",
-	              "hV4", "VO1", "hMTp"
-	            ]
 
 	_set_defaults()
 
 	fig = plt.figure()
 
-	fig.set_size_inches( 7.08661, 7.08661, forward = True )
+	fig.set_size_inches( 7.08661, 4.5, forward = True )
 
-	gs = gridspec.GridSpec( 3, 3 )
+	gs = gridspec.GridSpec( 2, 3 )
 
 	x = np.array( conf[ "stim" ][ "coh_levels" ] ) * 100
 
 	subj_col = [ 0.8 ] * 3
 
-	for ( i_roi, roi_name ) in enumerate( roi_order ):
+	for ( i_roi, ( roi_name, _ ) ) in enumerate( conf[ "ana" ][ "rois" ] ):
 
 		ax = plt.subplot( gs[ i_roi ] )
 
 		ax.hold( True )
 
-		data = np.loadtxt( "%s-%s.txt" % ( paths[ "roi_mean" ], roi_name.lower() ),
-		                   usecols = [ 1, 2, 3, 4 ]
-		                 )
+		subj_data_path = paths.psc.full( "_{roi:s}-norm.txt".format( roi = roi_name ) )
 
-		for i_subj in xrange( data.shape[ 0 ] ):
+		# this is subjects x coherences
+		subj_data = np.loadtxt( subj_data_path )
+
+		for i_subj in xrange( subj_data.shape[ 0 ] ):
 
 			ax.plot( x,
-			         data[ i_subj, : ],
+			         subj_data[ i_subj, : ],
 			         color = subj_col
 			       )
 
 			ax.scatter( x,
-			            data[ i_subj, : ],
+			            subj_data[ i_subj, : ],
 			            edgecolor = [ 1 ] * 3,
 			            facecolor = subj_col,
 			          )
 
+		data_path = paths.descrip.full( "_{roi:s}.txt".format( roi = roi_name ) )
+
+		# ( mean, sem )
+		( data_mean, data_sem ) = np.loadtxt( data_path )
+
 		ax.plot( x,
-		         np.mean( data, axis = 0 ),
+		         data_mean,
 		         "k",
 		         linewidth = 1.5
 		       )
 
+		_ = [ ax.plot( [ xx ] * 2,
+		               [ xx_data_mean - xx_data_sem, xx_data_mean + xx_data_sem ],
+		               "k",
+		               linewidth = 1.5
+		             )
+		      for ( xx, xx_data_mean, xx_data_sem ) in zip( x, data_mean, data_sem )
+		    ]
+
 		ax.scatter( x,
-		            np.mean( data, axis = 0 ),
+		            data_mean,
 		            edgecolor = [ 1 ] * 3,
 		            facecolor = "k",
 		            zorder = 100,
@@ -328,38 +227,39 @@ def plot_roi_psc( paths, conf ):
 		_cleanup_fig( ax )
 
 		ax.set_xlim( [ -10, 110 ] )
-		ax.set_ylim( [ -0.4, 0.4 ] )
+		ax.set_ylim( [ -0.325, 0.325 ] )
 
-		ax.set_ylabel( "Response (psc)" )
-		ax.set_xlabel( "Stimulus coherence (%)" )
+		if i_roi == 3:
+			ax.set_ylabel( "Response (psc)" )
+			ax.set_xlabel( "Stimulus coherence (%)" )
 
 		ax.set_xticks( x )
+		ax.set_yticks( [ -0.2, 0, 0.2 ] )
 
 		ax.text( 0.1,
 		         0.9,
-		         roi_name,
+		         conf[ "ana" ][ "roi_labels" ][ i_roi ],
 		         transform = ax.transAxes,
 		         fontsize = 10 / 1.25
 		       )
 
 	plt.subplots_adjust( left = 0.09,
-	                     bottom = 0.07,
+	                     bottom = 0.12,
 	                     right = 0.97,
 	                     top = 0.97,
 	                     wspace = 0.41,
 	                     hspace = 0.34
 	                   )
 
-	plt.show()
+	if show_plot:
+		plt.show()
+	else:
+		save_path = paths.fig_psc.full( ".svg" )
+		plt.savefig( save_path )
 
 
-def plot_lin_trend_hist( paths, conf ):
-	"""a"""
-
-	roi_order = [ "V1", "V2", "V3",
-	              "V3AB", "LO1", "LO2",
-	              "hV4", "VO1", "hMTp"
-	            ]
+def plot_lin_kde( conf, path, show_plot = False ):
+	"""Linear trend histograms"""
 
 	_set_defaults()
 
@@ -367,14 +267,14 @@ def plot_lin_trend_hist( paths, conf ):
 
 	fig.set_size_inches( 7.08661, 7.08661, forward = True )
 
-	gs = gridspec.GridSpec( 3, 3 )
+	gs = gridspec.GridSpec( 2, 3 )
 
 	x = np.linspace( -10.0, 10.0, 500 )
 	px = 3
 
 	ix = np.logical_and( x > -px, x < px )
 
-	for ( i_roi, roi_name ) in enumerate( roi_order ):
+	for ( i_roi, ( roi_name, roi_id ) ) in enumerate( conf[ "ana" ][ "rois" ] ):
 
 		ax = plt.subplot( gs[ i_roi ] )
 
@@ -387,16 +287,11 @@ def plot_lin_trend_hist( paths, conf ):
 			subj_conf = glass_coherence_block.config.get_conf( subj_id )
 			subj_paths = glass_coherence_block.analysis.paths.get_subj_paths( subj_conf )
 
-			psc = np.vstack( ( np.loadtxt( "%s_%s_%s.txt" % ( subj_paths[ "rois" ][ "psc" ],
-			                                                  roi_name.lower(),
-			                                                  hemi
-			                                                )
-			                             )
-			                   for hemi in [ "lh", "rh" ]
-			                 )
-			               )
+			coef = np.loadtxt( subj_paths.roi.con_coef.full( ".txt" ) )
 
-			lin_coeff = np.sum( psc * np.array( [ -3, -1, +1, +3 ] ), axis = 1 )
+			i_coef_roi = ( coef[ :, 0 ] == int( roi_id ) )
+
+			lin_coeff = coef[ i_coef_roi, 1 ]
 
 			kde = scipy.stats.gaussian_kde( lin_coeff )
 

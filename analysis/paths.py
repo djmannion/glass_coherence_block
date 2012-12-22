@@ -124,16 +124,26 @@ def get_group_paths( conf ):
 
 	grp.base = fmri_tools.paths.Path( "/labs/olmanlab/Data7T/GlassCoherenceBlock/group_data" )
 
-	grp.log = grp.base + "glass_coherence_block-log.log"
+	file_base = "glass_coherence_block"
 
-	grp.task_anova = grp.base + "glass_coherence_block-task"
+	grp.log = grp.base + ( file_base + "-log.log" )
 
-	grp.psc = grp.base + "glass_coherence_block-psc"
+	grp.task_anova = grp.base + ( file_base + "-task" )
 
-	grp.con_data = grp.base + "glass_coherence_block-con_data"
+	grp.psc = grp.base + ( file_base + "-psc" )
 
-	grp.descrip = grp.base + "glass_coherence_block-descrip"
+	grp.con_data = grp.base + ( file_base + "-con_data" )
 
-	grp.con_stat = grp.base + "glass_coherence_block-con_stat"
+	grp.descrip = grp.base + ( file_base + "-descrip" )
+
+	grp.con_stat = grp.base + ( file_base + "-con_stat" )
+
+	# figures
+
+	grp.fig_base = grp.base / "figures"
+
+	grp.fig_task = grp.fig_base + ( file_base + "-task" )
+	grp.fig_psc = grp.fig_base + ( file_base + "-psc" )
+	grp.fig_roi_psc = grp.fig_base + ( file_base + "-roi_psc" )
 
 	return grp
