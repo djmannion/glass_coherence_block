@@ -132,4 +132,8 @@ def get_group_paths( conf ):
 
 	grp.con_data = grp.base + "glass_coherence_block-con_data"
 
+	grp.descrip = grp.base + "glass_coherence_block-descrip"
+
+	grp.con_stat = grp.base + "glass_coherence_block-con_stat"
+
 	return grp
