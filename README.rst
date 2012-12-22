@@ -185,27 +185,52 @@ Load the resulting ROI dataset (``sXXXX_glass_coherence_block-rois_HEMI-full.nim
 ROI statistics
 ~~~~~~~~~~~~~~
 
-Extracts the node percent signal change values for each ROI::
+Extracts the node percent signal change values for each ROI, combines across hemispheres, and computes the contrast coefficents::
 
     glass_coherence_block_subj_analysis sXXXX roi_xtr
 
+
+Task
+~~~~
+
+Analyses performance on the behavioural task::
+
+    glass_coherence_block_subj_analysis sXXXX task
 
 
 Group processing
 ----------------
 
-ROI aggregation
+ROI preparation
 ^^^^^^^^^^^^^^^
 
-Grabs the ROI data for each subject/hemisphere and collates it together by averaging over nodes::
+Aggregates the ROI data for each subject and performs normalisation::
 
-  glass_coherence_block_group rois
+    glass_coherence_block_group_analysis roi_prep
+
+
+Permutation testing
+^^^^^^^^^^^^^^^^^^^
+
+Computes the trend coefficients from the observed data and also generates permutation distributions::
+
+    glass_coherence_block_group_analysis roi_perm
 
 
 Statistics
 ^^^^^^^^^^
 
-Compute the trend coefficients and run permutation tests to get significance values (p and q)::
+Generates descriptive and inferential statistics::
 
-  glass_coherence_block_group stat
+    glass_coherence_block_group_analysis roi_stat
+
+
+Task
+^^^^
+
+Runs statistical tests on the task performance across subjects::
+
+    glass_coherence_block_group_analysis task
+
+
 
