@@ -4,7 +4,6 @@
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
-import scipy.stats
 
 import glass_coherence_block.analysis.paths
 
@@ -19,7 +18,7 @@ def write_mask_cmap( rois, cmap_path ):
 
 	n_cols = len( rois )
 
-	cols = brewer2mpl.get_map( "Dark2", "qualitative", n_cols ).mpl_colors
+	cols = brewer2mpl.get_map( map_name, map_type, n_cols ).mpl_colors
 
 	i_rois = [ int( roi[ 1 ] ) for roi in rois ]
 
@@ -256,145 +255,3 @@ def plot_psc( conf, paths, show_plot = False ):
 	else:
 		save_path = paths.fig_psc.full( ".svg" )
 		plt.savefig( save_path )
-
-
-def plot_lin_kde( conf, path, show_plot = False ):
-	"""Linear trend histograms"""
-
-	_set_defaults()
-
-	fig = plt.figure()
-
-	fig.set_size_inches( 7.08661, 7.08661, forward = True )
-
-	gs = gridspec.GridSpec( 2, 3 )
-
-	x = np.linspace( -10.0, 10.0, 500 )
-	px = 3
-
-	ix = np.logical_and( x > -px, x < px )
-
-	for ( i_roi, ( roi_name, roi_id ) ) in enumerate( conf[ "ana" ][ "rois" ] ):
-
-		ax = plt.subplot( gs[ i_roi ] )
-
-		ax.hold( True )
-
-		mu = []
-
-		for ( i_subj, subj_id ) in enumerate( conf[ "all_subj" ] ):
-
-			subj_conf = glass_coherence_block.config.get_conf( subj_id )
-			subj_paths = glass_coherence_block.analysis.paths.get_subj_paths( subj_conf )
-
-			coef = np.loadtxt( subj_paths.roi.con_coef.full( ".txt" ) )
-
-			i_coef_roi = ( coef[ :, 0 ] == int( roi_id ) )
-
-			lin_coeff = coef[ i_coef_roi, 1 ]
-
-			kde = scipy.stats.gaussian_kde( lin_coeff )
-
-			y = kde.evaluate( x )
-
-			y /= np.sum( y )
-
-			ax.plot( x[ ix ], y[ ix ], color = [ 0.25 ] * 3 )
-
-			mu.append( np.mean( lin_coeff ) )
-
-		ylim = ax.get_ylim()
-
-		ax.plot( [ 0, 0 ], [ 0, 0.05 ], "k--", zorder = -100 )
-
-		for subj_mu in mu:
-
-			mu_h = 0.0025
-
-			ax.plot( [ subj_mu ] * 2,
-			         [ -mu_h - 0.00125, -mu_h + 0.00125 ],
-			         color = [ 0.25 ] * 3
-			       )
-
-		_cleanup_fig( ax )
-
-		ax.set_ylim( [ -0.005, 0.05 ] ) # ylim[ 1 ] ] )
-
-		ax.set_xlabel( "Linear trend coefficient" )
-		ax.set_ylabel( "Density (norm)" )
-
-		ax.set_yticks( [ 0, 0.01, 0.02, 0.03, 0.04, 0.05 ] )
-
-		ax.text( 0.1,
-		         0.9,
-		         roi_name,
-		         transform = ax.transAxes,
-		         fontsize = 10 / 1.25
-		       )
-
-	plt.subplots_adjust( left = 0.09,
-	                     bottom = 0.07,
-	                     right = 0.97,
-	                     top = 0.97,
-	                     wspace = 0.41,
-	                     hspace = 0.34
-	                   )
-
-	plt.show()
-
-
-def plot_trends( paths, conf ):
-	"""a"""
-
-	roi_order = [ "V1", "V2", "V3",
-	              "V3AB", "LO1", "LO2",
-	              "hV4", "VO1", "hMTp"
-	            ]
-
-	trends = [ "Linear", "Quadratic", "Cubic" ]
-
-	trend_cf = [ [ -3, -1, +1, +3 ],
-	             [ +1, -1, -1, +1 ],
-	             [ -1, +3, -3, +1 ]
-	           ]
-
-	_set_defaults()
-
-	fig = plt.figure()
-
-	fig.set_size_inches( 3, 7, forward = True )
-
-	gs = gridspec.GridSpec( 3, 1 )
-
-	x_off = 0.2
-
-	for ( i_trend, trend_name ) in enumerate( trends ):
-
-		ax = plt.subplot( gs[ i_trend ] )
-		ax.hold( True )
-
-		for ( i_roi, roi_name ) in enumerate( roi_order ):
-
-			stat = np.loadtxt( "%s-%s.txt" % ( paths[ "roi_stat" ], roi_name.lower() ) )
-			grp = np.loadtxt( "%s-%s.txt" % ( paths[ "roi_mean" ], roi_name.lower() ),
-			                  usecols = np.arange( 1, 5 )
-			                )
-
-			for i_subj in xrange( grp.shape[ 0 ] ):
-				subj_cf = np.sum( grp[ i_subj, : ] * trend_cf[ i_trend ] )
-
-				ax.scatter( i_roi, subj_cf, color = [ 0.8 ] * 3 )
-
-			ax.plot( [ i_roi - x_off ] * 2,
-			         [ stat[ 3, i_trend ], stat[ 4, i_trend ] ],
-			         "w"
-			       )
-
-			ax.plot( [ i_roi + x_off ] * 2,
-			         [ stat[ 3, i_trend ], stat[ 4, i_trend ] ],
-			         "w"
-			       )
-
-			ax.scatter( i_roi, stat[ 0, i_trend ] )
-
-	plt.show()
