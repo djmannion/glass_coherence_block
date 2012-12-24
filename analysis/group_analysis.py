@@ -293,4 +293,3 @@ def roi_stat( conf, paths ):
 		con_stat_path = paths.con_stat.full( "_{roi:s}.txt".format( roi = roi_name ) )
 
 		np.savetxt( con_stat_path, p, "%.4f" )
-

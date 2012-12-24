@@ -369,6 +369,85 @@ def roi_xtr( conf, paths ):
 	os.chdir( start_dir )
 
 
+def roi_vf( conf, paths ):
+	"""Visual field properties for each ROI node"""
+
+	logger = logging.getLogger( __name__ )
+	logger.info( "Running visual field analysis..." )
+
+	start_dir = os.getcwd()
+
+	os.chdir( paths.roi.base.dir() )
+
+	for hemi in [ "lh", "rh" ]:
+
+		nk = conf[ "subj" ][ "node_k" ][ hemi ]
+
+		# 1. make ROI dataset from dorsal and ventral ROIs
+		dv_path = paths.roi.dv_rois.full( "_{hemi:s}-full.niml.dset".format( hemi = hemi ) )
+
+		dset_cmd = [ "ROI2dataset",
+		             "-pad_to_node", "{nk:d}".format( nk = nk ),
+		             "-prefix", dv_path,
+		             "-overwrite",
+		             "-input", "{hemi:s}_dorsal.1D.roi".format( hemi = hemi ),
+		                       "{hemi:s}_ventral.1D.roi".format( hemi = hemi )
+		           ]
+
+		fmri_tools.utils.run_cmd( " ".join( dset_cmd ) )
+
+		# 2. convert wedge info to full
+		fs_wedge_path = paths.roi.fs_wedge.full( "_{h:s}.niml.dset".format( h = hemi ) )
+		wedge_path = paths.roi.wedge.full( "_{h:s}-full.niml.dset".format( h = hemi ) )
+
+		fmri_tools.utils.sparse_to_full( in_dset = fs_wedge_path,
+		                                 out_dset = wedge_path,
+		                                 pad_node = "{nk:d}".format( nk = nk )
+		                               )
+
+		# 3. dump
+		vf_path = paths.roi.vf.full( "_{hemi:s}.txt".format( hemi = hemi ) )
+
+		roi_path = paths.roi.rois.full( "_{hemi:s}-full.niml.dset".format( hemi = hemi ) )
+		mask_path = paths.ana.mask.full( "_{hemi:s}-full.niml.dset".format( hemi = hemi ) )
+
+		# 3dmaskdump won't overwrite, so need to manually remove any previous file
+		if os.path.exists( vf_path ):
+			os.remove( vf_path )
+
+		mask_expr = "'-a {m:s} -expr step(a)'".format( m = mask_path )
+
+		xtr_cmd = [ "3dmaskdump",
+		            "-mask", roi_path,
+		            "-cmask", mask_expr,
+		            "-noijk",
+		            "-o", vf_path,
+		            roi_path,
+		            dv_path,
+		            wedge_path
+		          ]
+
+		fmri_tools.utils.run_cmd( " ".join( xtr_cmd ) )
+
+	# 4. combine
+	vf_h = [ np.loadtxt( paths.roi.vf.full( "_lh.txt" ) ),
+	         np.loadtxt( paths.roi.vf.full( "_rh.txt" ) )
+	       ]
+
+	vf_n = [ v.shape[ 0 ] for v in vf_h ]
+
+	vf = np.vstack( [ np.hstack( ( vf_h[ i ], np.ones( ( vf_n[ i ], 1 ) ) * ( i + 1 ) ) )
+	                  for i in xrange( 2 )
+	                ]
+	              )
+
+	vf_path = paths.roi.vf.full( ".txt" )
+
+	np.savetxt( vf_path, vf )
+
+	os.chdir( start_dir )
+
+
 def proc_task( conf, paths ):
 	"""Analyses performance on the behavioural task"""
 
