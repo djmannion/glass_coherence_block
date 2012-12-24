@@ -72,8 +72,25 @@ def _get_roi_paths( conf, paths ):
 
 	roi.mask_rois = roi.base + ( file_base + "mask_rois" )
 	roi.rois = roi.base + ( file_base + "rois" )
+	roi.dv_rois = roi.base + ( file_base + "dorsal_ventral_rois" )
+
+	wedge_file = "{s:s}_vis_loc_{d:s}_wedge-angle".format( s = subj_id,
+	                                                       d = conf[ "subj" ][ "wedge_date" ]
+	                                                     )
+
+	roi.fs_wedge = fmri_tools.paths.Path( os.path.join( "/labs/olmanlab/FsVisLoc/",
+	                                                    subj_id,
+	                                                    conf[ "subj" ][ "wedge_date" ],
+	                                                    "dt", "wedge"
+	                                                  ),
+	                                      wedge_file
+	                                    )
+
+	roi.wedge = roi.base + ( file_base + "wedge" )
 
 	roi.psc = roi.base + ( file_base + "psc" )
+
+	roi.vf = roi.base + ( file_base + "vf" )
 
 	roi.con_coef = roi.base + ( file_base + "con_coef" )
 

@@ -199,6 +199,7 @@ def _get_subj_conf( subj_id = None ):
 	          "n_fmaps" : 1,
 	          "mot_base" : 7,
 	          "extra_al_params" : None,
+	          "wedge_date" : "20111212",
 	          "node_k" : { "lh" : 140847,
 	                       "rh" : 141381
 	                     }
