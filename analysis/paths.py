@@ -94,6 +94,8 @@ def _get_roi_paths( conf, paths ):
 
 	roi.con_coef = roi.base + ( file_base + "con_coef" )
 
+	roi.lin_v3_vf = roi.base + ( file_base + "lin_v3_vf" )
+
 	return roi
 
 

@@ -190,6 +190,17 @@ Extracts the node percent signal change values for each ROI, combines across hem
     glass_coherence_block_subj_analysis sXXXX roi_xtr
 
 
+Visual field
+~~~~~~~~~~~~
+
+First, draw ROIs for dorsal (101) and ventral (201) cortex, saved as ``lh_dorsal``, ``lh_ventral``, ``rh_dorsal``, ``rh_ventral`` in the ``rois`` directory.
+Draw the dorsal ROI first, since it has precedence in overlap.
+Then, make sure ``wedge_date`` is set correctly in the subject's configuration.
+
+Then, run::
+
+    glass_coherence_block_subj_analysis sXXXX roi_vf
+
 Task
 ~~~~
 

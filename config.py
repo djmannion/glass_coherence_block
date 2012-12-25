@@ -72,6 +72,14 @@ def _get_ana_conf( conf ):
 	task_bin_res_s = 0.1
 	task_perf_n_bins = 15
 
+	# right edges
+	vf_bins = [ 22.5, 45.0, 67.5, 90.0 ] # [ 30, 60, 90 ]
+
+	# [ [ dv_id, ref_deg ] ]
+	vf_ref = [ [ 101, 270 ],  # dorsal
+	           [ 201, 90 ]    # ventral
+	         ]
+
 	ana_conf = { "rois" : rois,
 	             "vl_rois" : vl_rois,
 	             "mask_rois" : mask_rois,
@@ -83,6 +91,8 @@ def _get_ana_conf( conf ):
 	             "con_coefs" : con_coefs,
 	             "con_names" : con_names,
 	             "n_perm" : n_perm,
+	             "vf_bins" : vf_bins,
+	             "vf_ref" : vf_ref,
 	             "task_bin_res_s" : task_bin_res_s,
 	             "task_perf_n_bins" : task_perf_n_bins
 	           }
@@ -211,6 +221,7 @@ def _get_subj_conf( subj_id = None ):
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
 	          "mot_base" : 7,
+	          "wedge_date" : "20121219",
 	          "extra_al_params": [ "-parang", "1", "-9", "5",
 	                               "-parang", "2", "7", "17",
 	                               "-parang", "3", "25", "35",
@@ -229,6 +240,7 @@ def _get_subj_conf( subj_id = None ):
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
 	          "mot_base" : 7,
+	          "wedge_date" : "20111212",
 	          "extra_al_params" : [ "-parang", "1", "-9", "1",
 	                                "-parang", "2", "12", "22",
 	                                "-parang", "3", "17", "27",
@@ -247,6 +259,7 @@ def _get_subj_conf( subj_id = None ):
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
 	          "mot_base" : 7,
+	          "wedge_date" : "20111214",
 	          "extra_al_params" : [ "-parang", "1", "-2", "8",
 	                                "-parang", "2", "9", "19",
 	                                "-parang", "3", "12", "22",
@@ -266,6 +279,7 @@ def _get_subj_conf( subj_id = None ):
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
 	          "mot_base" : 7,
+	          "wedge_date" : "20111214",
 	          "extra_al_params" : None,
 	          "node_k" : { "lh" : 124787,
 	                       "rh" : 127339
@@ -278,6 +292,7 @@ def _get_subj_conf( subj_id = None ):
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
 	          "mot_base" : 7,
+	          "wedge_date" : "20120203",
 	          "extra_al_params" : [ "-parang", "1", "-1", "9",
 	                                "-parang", "2", "12", "22",
 	                                "-parang", "3", "13", "28",
