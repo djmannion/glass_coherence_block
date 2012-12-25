@@ -445,6 +445,52 @@ def roi_vf( conf, paths ):
 
 	np.savetxt( vf_path, vf )
 
+	# `vf` is nodes x (ROI,dvROI,deg,snr)
+	vf_bins = conf[ "ana" ][ "vf_bins" ]
+
+	# need the linear coefficients for each node
+	con_coef = np.loadtxt( paths.roi.con_coef.full( ".txt" ) )
+
+	assert( con_coef.shape[ 0 ] == vf.shape[ 0 ] )
+
+	lin_coef_v3 = np.zeros( ( len( vf_bins ) ) )
+
+	for ( vf_id, vf_ref_deg ) in conf[ "ana" ][ "vf_ref" ]:
+
+		# get the nodes that are in V3 and its dorsal or ventral component
+		i_vf = np.logical_and( vf[ :, 0 ] == 3,  # V3 node
+		                       vf[ :, 1 ] == vf_id  # dorsal/ventral node
+		                     )
+
+		assert( np.all( con_coef[ i_vf, 0 ] == 3 ) )
+
+		print np.sum( i_vf )
+
+		# get the visual field position of the rois
+		vf_deg = vf[ i_vf, 2 ]
+
+		# compute the circular distance to the reference for each node
+		ref_dist = [ fmri_tools.utils.circ_dist( np.radians( vf_node_deg ),
+		                                         np.radians( vf_ref_deg )
+		                                       )
+		             for vf_node_deg in vf_deg
+		           ]
+
+		# convert to degrees, and abs
+		ref_dist = np.abs( np.degrees( ref_dist ) )
+
+		# work out which bin the distances belong to
+		i_dist_bin = np.digitize( ref_dist, vf_bins )
+
+		lin_coefs = con_coef[ i_vf, 1 ]
+
+		for i_bin in xrange( len( vf_bins ) ):
+			lin_coef_v3[ i_bin ] += np.mean( lin_coefs[ i_dist_bin == i_bin ] )
+
+	lin_coef_v3 /= 2.0
+
+	np.savetxt( paths.roi.lin_v3_vf.full( ".txt" ), lin_coef_v3 )
+
 	os.chdir( start_dir )
 
 
