@@ -448,12 +448,12 @@ def roi_vf( conf, paths ):
 	# `vf` is nodes x (ROI,dvROI,deg,snr)
 	vf_bins = conf[ "ana" ][ "vf_bins" ]
 
-	# need the linear coefficients for each node
-	con_coef = np.loadtxt( paths.roi.con_coef.full( ".txt" ) )
+	# need the psc for each node
+	psc = np.loadtxt( paths.roi.psc.full( ".txt" ) )
 
-	assert( con_coef.shape[ 0 ] == vf.shape[ 0 ] )
+	assert( psc.shape[ 0 ] == vf.shape[ 0 ] )
 
-	lin_coef_v3 = np.zeros( ( len( vf_bins ) ) )
+	psc_v3 = []
 
 	for ( vf_id, vf_ref_deg ) in conf[ "ana" ][ "vf_ref" ]:
 
@@ -462,7 +462,7 @@ def roi_vf( conf, paths ):
 		                       vf[ :, 1 ] == vf_id  # dorsal/ventral node
 		                     )
 
-		assert( np.all( con_coef[ i_vf, 0 ] == 3 ) )
+		assert( np.all( psc[ i_vf, 0 ] == 3 ) )
 
 		# get the visual field position of the rois
 		vf_deg = vf[ i_vf, 2 ]
@@ -480,14 +480,16 @@ def roi_vf( conf, paths ):
 		# work out which bin the distances belong to
 		i_dist_bin = np.digitize( ref_dist, vf_bins )
 
-		lin_coefs = con_coef[ i_vf, 1 ]
+		psc_v3.append( np.hstack( ( ( i_dist_bin + 1 )[ :, np.newaxis ],
+		                            psc[ i_vf, 1: ]
+		                          )
+		                        )
+		             )
 
-		for i_bin in xrange( len( vf_bins ) ):
-			lin_coef_v3[ i_bin ] += np.mean( lin_coefs[ i_dist_bin == i_bin ] )
 
-	lin_coef_v3 /= 2.0
+	psc_v3 = np.vstack( psc_v3 )
 
-	np.savetxt( paths.roi.lin_v3_vf.full( ".txt" ), lin_coef_v3 )
+	np.savetxt( paths.roi.vf_v3_psc.full( ".txt" ), psc_v3 )
 
 	os.chdir( start_dir )
 
