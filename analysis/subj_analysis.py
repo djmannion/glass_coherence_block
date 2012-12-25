@@ -464,8 +464,6 @@ def roi_vf( conf, paths ):
 
 		assert( np.all( con_coef[ i_vf, 0 ] == 3 ) )
 
-		print np.sum( i_vf )
-
 		# get the visual field position of the rois
 		vf_deg = vf[ i_vf, 2 ]
 
