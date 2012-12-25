@@ -94,7 +94,7 @@ def _get_roi_paths( conf, paths ):
 
 	roi.con_coef = roi.base + ( file_base + "con_coef" )
 
-	roi.lin_v3_vf = roi.base + ( file_base + "lin_v3_vf" )
+	roi.vf_v3_psc = roi.base + ( file_base + "lin_v3_vf" )
 
 	return roi
 
@@ -157,7 +157,7 @@ def get_group_paths( conf ):
 
 	grp.con_stat = grp.base + ( file_base + "-con_stat" )
 
-	grp.vf_v3_coef = grp.base + ( file_base + "-vf_v3_coef" )
+	grp.vf_v3_psc = grp.base + ( file_base + "-vf_v3_psc" )
 	grp.vf_v3_con = grp.base + ( file_base + "-vf_v3_con" )
 	grp.vf_v3_stat = grp.base + ( file_base + "-vf_v3_stat" )
 	grp.vf_v3_descrip = grp.base + ( file_base + "-vf_v3_descrip" )

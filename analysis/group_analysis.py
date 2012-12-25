@@ -299,115 +299,147 @@ def vf_v3_prep( conf, paths ):
 	"""Prepare the V3 visual field correlated values"""
 
 	logger = logging.getLogger( __name__ )
-	logger.info( "Running V3 visual field analysis preparation..." )
+	logger.info( "Running V3 visual field preparation..." )
 
 	n_subj = len( conf[ "all_subj" ] )
+	n_cond = len( conf[ "stim" ][ "coh_levels" ] )
 	n_bins = len( conf[ "ana" ][ "vf_bins" ] )
 
-	coef_vals = np.empty( ( n_subj, n_bins ) )
-	coef_vals.fill( np.NAN )
+	for i_bin in xrange( n_bins ):
 
-	for ( i_subj, subj_id ) in enumerate( conf[ "all_subj" ] ):
+		psc_vals = np.empty( ( n_subj, n_cond ) )
+		psc_vals.fill( np.NAN )
 
-		subj_conf = glass_coherence_block.config.get_conf( subj_id )
-		subj_paths = glass_coherence_block.analysis.paths.get_subj_paths( subj_conf )
+		for ( i_subj, subj_id ) in enumerate( conf[ "all_subj" ] ):
 
-		# n_bins long
-		subj_coef = np.loadtxt( subj_paths.roi.lin_v3_vf.full( ".txt" ) )
+			subj_conf = glass_coherence_block.config.get_conf( subj_id )
+			subj_paths = glass_coherence_block.analysis.paths.get_subj_paths( subj_conf )
 
-		coef_vals[ i_subj, : ] = subj_coef
+			# nodes x ( bin id, .. )
+			subj_psc = np.loadtxt( subj_paths.roi.vf_v3_psc.full( ".txt" ) )
 
-	assert( np.sum( np.isnan( coef_vals ) ) == 0 )
+			i_roi_nodes = ( subj_psc[ :, 0 ] == ( i_bin + 1 ) )
 
-	coef_path = paths.vf_v3_coef.full( ".txt" )
+			subj_psc_mean = np.mean( subj_psc[ i_roi_nodes, 1: ], axis = 0 )
 
-	np.savetxt( coef_path, coef_vals )
+			psc_vals[ i_subj, : ] = subj_psc_mean
+
+		assert( np.sum( np.isnan( psc_vals ) ) == 0 )
+
+		psc_path = paths.vf_v3_psc.full( "_{b:.0f}.txt".format( b = ( i_bin + 1 ) ) )
+
+		# save
+		np.savetxt( psc_path, psc_vals )
+
+		# now to normalise by subtracting the subject mean
+		norm_psc_vals = np.empty( psc_vals.shape )
+		norm_psc_vals.fill( np.NAN )
+
+		# could use expansion, but just to be safe do it the verbose way
+		for i_subj in xrange( n_subj ):
+
+			subj_mean = np.mean( psc_vals[ i_subj, : ] )
+
+			norm_psc_vals[ i_subj, : ] = ( psc_vals[ i_subj, : ] - subj_mean )
+
+		assert( np.sum( np.isnan( norm_psc_vals ) ) == 0 )
+
+		norm_psc_path = paths.vf_v3_psc.full( "_{b:.0f}-norm.txt".format( b = ( i_bin + 1 ) ) )
+
+		np.savetxt( norm_psc_path, norm_psc_vals )
+
 
 
 def vf_v3_perm( conf, paths ):
 	"""Permutation test on the V3 visual field correlated values"""
 
 	logger = logging.getLogger( __name__ )
-	logger.info( "Running V3 visual field analysis permutations..." )
+	logger.info( "Running V3 visual field permutations..." )
 
 	n_subj = len( conf[ "all_subj" ] )
-	n_cond = len( conf[ "ana" ][ "vf_bins" ] )
+	n_cond = len( conf[ "stim" ][ "coh_levels" ] )
+	n_bins = len( conf[ "ana" ][ "vf_bins" ] )
 
 	n_con = len( conf[ "ana" ][ "con_coefs" ] )
 	n_perm = conf[ "ana" ][ "n_perm" ]
 
-	vf_seed = conf[ "ana" ][ "vf_seed" ]
+	vf_seeds = conf[ "ana" ][ "vf_seeds" ]
 
-	# subj x bin
-	vf_coef = np.loadtxt( paths.vf_v3_coef.full( ".txt" ) )
+	for i_bin in xrange( n_bins ):
 
-	con_data = np.empty( ( n_perm + 1, n_con ) )
-	con_data.fill( np.NAN )
+		# might as well used normed; shouldn't matter
+		psc = np.loadtxt( paths.vf_v3_psc.full( "_{b:.0f}-norm.txt".format( b = ( i_bin + 1 ) ) ) )
 
-	np.random.seed( vf_seed )
+		con_data = np.empty( ( n_perm + 1, n_con ) )
+		con_data.fill( np.NAN )
 
-	# first, handle the unpermuted data
-	con_data[ 0, : ] = [ np.sum( np.mean( vf_coef, axis = 0 ) * con_coef )
-	                     for con_coef in conf[ "ana" ][ "con_coefs" ]
-	                   ]
+		np.random.seed( vf_seeds[ i_bin ] )
 
-	# now the permuted
-	for i_perm in xrange( n_perm ):
+		# first, handle the unpermuted data
+		con_data[ 0, : ] = [ np.sum( np.mean( psc, axis = 0 ) * con_coef )
+		                     for con_coef in conf[ "ana" ][ "con_coefs" ]
+		                   ]
 
-		perm_con = [ vf_coef[ i_subj, np.random.permutation( n_cond ) ]
-		             for i_subj in xrange( n_subj )
-		           ]
+		# now the permuted
+		for i_perm in xrange( n_perm ):
 
-		con_data[ i_perm + 1, : ] = [ np.sum( np.mean( perm_con, axis = 0 ) * con_coef )
-		                              for con_coef in conf[ "ana" ][ "con_coefs" ]
-		                            ]
+			perm_psc = [ psc[ i_subj, np.random.permutation( n_cond ) ]
+			             for i_subj in xrange( n_subj )
+			           ]
 
-	# now to save
-	con_data_path = paths.vf_v3_con.full( ".txt" )
+			con_data[ i_perm + 1, : ] = [ np.sum( np.mean( perm_psc, axis = 0 ) * con_coef )
+			                              for con_coef in conf[ "ana" ][ "con_coefs" ]
+			                            ]
 
-	np.savetxt( con_data_path, con_data )
+		# now to save
+		con_data_path = paths.vf_v3_con.full( "_{b:.0f}.txt".format( b = ( i_bin + 1 ) ) )
+
+		np.savetxt( con_data_path, con_data )
 
 
 def vf_v3_stat( conf, paths ):
-	"""Descriptive and inferential stats on the V3 visual field data"""
+	"""Descriptive and inferential stats on the V3 visual field correlated data"""
 
 	logger = logging.getLogger( __name__ )
 	logger.info( "Running V3 visual field stats..." )
 
-	# descriptive stats
-	coef = np.loadtxt( paths.vf_v3_coef.full( ".txt" ) )
+	for i_bin in xrange( len( conf[ "ana" ][ "vf_bins" ] ) ):
 
-	descrip = np.empty( ( 2, coef.shape[ 1 ] ) )
-	descrip.fill( np.NAN )
+		# descriptive stats
+		psc = np.loadtxt( paths.vf_v3_psc.full( "_{b:.0f}-norm.txt".format( b = ( i_bin + 1 ) ) ) )
 
-	# mean
-	descrip[ 0, : ] = np.mean( coef, axis = 0 )
-	# sem
-	descrip[ 1, : ] = scipy.stats.sem( coef, axis = 0 )
+		descrip = np.empty( ( 2, psc.shape[ 1 ] ) )
+		descrip.fill( np.NAN )
 
-	assert( np.sum( np.isnan( descrip ) ) == 0 )
+		# mean
+		descrip[ 0, : ] = np.mean( psc, axis = 0 )
+		# sem
+		descrip[ 1, : ] = scipy.stats.sem( psc, axis = 0 )
 
-	descrip_path = paths.vf_v3_descrip.full( ".txt" )
+		assert( np.sum( np.isnan( descrip ) ) == 0 )
 
-	np.savetxt( descrip_path, descrip )
+		descrip_path = paths.vf_v3_descrip.full( "_{b:.0f}.txt".format( b = ( i_bin + 1 ) ) )
 
-	# inferential stats
+		np.savetxt( descrip_path, descrip )
 
-	# ( 1 + n_perms ) x ( lin, quad, cub )
-	con_data = np.loadtxt( paths.vf_v3_con.full( ".txt" ) )
+		# inferential stats
 
-	# this gives `p` as between 0 and 100
-	p = [ scipy.stats.percentileofscore( a = con_data[ 1:, i_con ],
-	                                     score = con_data[ 0, i_con ]
-	                                   )
-	      for i_con in xrange( con_data.shape[ 1 ] )
-	    ]
+		# ( 1 + n_perms ) x ( lin, quad, cub )
+		con_data = np.loadtxt( paths.vf_v3_con.full( "_{b:.0f}.txt".format( b = ( i_bin + 1 ) ) ) )
 
-	# assign p as the smaller of the two directions, convert to [ 0, 1 ], and double (for two-tailed)
-	p = [ np.min( [ con_p, 100.0 - con_p ] ) / 100.0 * 2 for con_p in p ]
+		# this gives `p` as between 0 and 100
+		p = [ scipy.stats.percentileofscore( a = con_data[ 1:, i_con ],
+		                                     score = con_data[ 0, i_con ]
+		                                   )
+		      for i_con in xrange( con_data.shape[ 1 ] )
+		    ]
 
-	con_stat_path = paths.vf_v3_stat.full( ".txt" )
+		# assign p as the smaller of the two directions, convert to [ 0, 1 ], and double (for two-tailed)
+		p = [ np.min( [ con_p, 100.0 - con_p ] ) / 100.0 * 2 for con_p in p ]
 
-	np.savetxt( con_stat_path, p, "%.4f" )
+		con_stat_path = paths.vf_v3_stat.full( "_{b:.0f}.txt".format( b = ( i_bin + 1 ) ) )
+
+		np.savetxt( con_stat_path, p, "%.4f" )
+
 
 

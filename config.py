@@ -60,7 +60,7 @@ def _get_ana_conf( conf ):
 	              15042
 	            ]
 
-	vf_seed = 61140
+	vf_seeds = [ 772, 32776, 44888, 63222 ]
 
 	n_perm = 10 ** 4
 
@@ -95,7 +95,7 @@ def _get_ana_conf( conf ):
 	             "n_perm" : n_perm,
 	             "vf_bins" : vf_bins,
 	             "vf_ref" : vf_ref,
-	             "vf_seed" : vf_seed,
+	             "vf_seeds" : vf_seeds,
 	             "task_bin_res_s" : task_bin_res_s,
 	             "task_perf_n_bins" : task_perf_n_bins
 	           }
