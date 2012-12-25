@@ -35,7 +35,10 @@ def main():
 	proc_steps = ( "task",
 	               "roi_prep",
 	               "roi_perm",
-	               "roi_stat"
+	               "roi_stat",
+	               "vf_v3_prep",
+	               "vf_v3_perm",
+	               "vf_v3_stat"
 	             )
 
 	parser.add_argument( "proc_step",
@@ -76,6 +79,15 @@ def main():
 
 	elif args.proc_step == "roi_stat":
 		glass_coherence_block.analysis.group_analysis.roi_stat( conf, paths )
+
+	elif args.proc_step == "vf_v3_prep":
+		glass_coherence_block.analysis.group_analysis.vf_v3_prep( conf, paths )
+
+	elif args.proc_step == "vf_v3_perm":
+		glass_coherence_block.analysis.group_analysis.vf_v3_perm( conf, paths )
+
+	elif args.proc_step == "vf_v3_stat":
+		glass_coherence_block.analysis.group_analysis.vf_v3_stat( conf, paths )
 
 	else:
 		print "Not implemented"

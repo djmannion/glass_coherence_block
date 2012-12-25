@@ -157,6 +157,11 @@ def get_group_paths( conf ):
 
 	grp.con_stat = grp.base + ( file_base + "-con_stat" )
 
+	grp.vf_v3_coef = grp.base + ( file_base + "-vf_v3_coef" )
+	grp.vf_v3_con = grp.base + ( file_base + "-vf_v3_con" )
+	grp.vf_v3_stat = grp.base + ( file_base + "-vf_v3_stat" )
+	grp.vf_v3_descrip = grp.base + ( file_base + "-vf_v3_descrip" )
+
 	# figures
 
 	grp.fig_base = grp.base / "figures"

@@ -236,6 +236,16 @@ Generates descriptive and inferential statistics::
     glass_coherence_block_group_analysis roi_stat
 
 
+Visual field
+~~~~~~~~~~~~
+
+As above, but for the effect of visual field position in V3::
+
+    glass_coherence_block_group_analysis vf_v3_prep
+    glass_coherence_block_group_analysis vf_v3_perm
+    glass_coherence_block_group_analysis vf_v3_stat
+
+
 Task
 ~~~~
 
