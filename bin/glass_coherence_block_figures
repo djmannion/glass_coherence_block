@@ -29,7 +29,6 @@ def main():
 	                                )
 
 	steps = ( "psc",
-	          "lin_kde",
 	          "task"
 	        )
 
@@ -55,9 +54,6 @@ def main():
 
 	elif args.step == "task":
 		glass_coherence_block.analysis.figures.plot_task_perf( conf, paths, args.show_plot )
-
-	elif args.step == "lin_kde":
-		glass_coherence_block.analysis.figures.plot_lin_kde( conf, paths, args.show_plot )
 
 	else:
 		print "Not completed"

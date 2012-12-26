@@ -75,7 +75,7 @@ def _get_ana_conf( conf ):
 	task_perf_n_bins = 15
 
 	# right edges
-	vf_bins = [ 22.5, 45.0, 67.5, 90.0 ] # [ 30, 60, 90 ]
+	vf_bins = [ 22.5, 45.0, 67.5, 90.0 ]
 
 	# [ [ dv_id, ref_deg ] ]
 	vf_ref = [ [ 101, 270 ],  # dorsal
@@ -211,8 +211,16 @@ def _get_subj_conf( subj_id = None ):
 	          "n_runs" : 12,
 	          "n_fmaps" : 1,
 	          "mot_base" : 7,
-	          "extra_al_params" : None,
 	          "wedge_date" : "20111212",
+	          "extra_al_params": [ "-parang", "1", "-4", "2",
+	                               "-parang", "2", "12", "16",
+	                               "-parang", "3", "38", "44",
+	                               "-parang", "4", "-4", "-2",
+	                               "-parang", "5", "-4", "-2",
+	                               "-parang", "6", "1", "3",
+	                               "-source_automask+2",
+	                               "-nocmass"
+	                             ],
 	          "node_k" : { "lh" : 140847,
 	                       "rh" : 141381
 	                     }

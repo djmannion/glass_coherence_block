@@ -23,7 +23,7 @@ Prepare the filesystem
 
 1. Make the subject's directory structure::
 
-    mkdir -p sXXXX/{analysis,fmap,func/run{01,02,03,04,05,06,07,08,09,10,11,12},logs,reg,rois}
+    mkdir -p sXXXX/{analysis,fmap,func/run{01,02,03,04,05,06,07,08,09,10,11,12},logs,reg,rois,task}
 
 2. Copy the subject's runtime logfiles to the ``logs`` directory.
 

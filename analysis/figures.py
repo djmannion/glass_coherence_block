@@ -31,6 +31,46 @@ def write_mask_cmap( rois, cmap_path ):
 	np.savetxt( cmap_path, cmap )
 
 
+def write_mask_plot_dataset( conf, paths, dset_path, hemi ):
+	"""Writes the dataset necessary for an 'activation' analysis in SUMA
+
+	`conf` and `paths` are for the desired subject
+
+	"""
+
+	( dset_dir, _ ) = os.path.split( dset_path )
+
+	start_dir = os.getcwd()
+	os.chdir( dset_dir )
+
+	mask_path = paths.ana.mask.full( "_{h:s}-full.niml.dset".format( h = hemi ) )
+	rois_path = paths.roi.rois.full( "_{h:s}-full.niml.dset".format( h = hemi ) )
+
+	# first, want to change each mask node to its corresponding ROI value
+	cmd = [ "3dcalc",
+	        "-a", mask_path,
+	        "-b", rois_path,
+	        "-expr", "'a*b'",
+	        "-prefix", dset_path,
+	        "-overwrite"
+	      ]
+
+	fmri_tools.utils.run_cmd( " ".join( cmd ) )
+
+	# but, that didn't take into account nodes that aren't part of any ROI.
+	cmd = [ "3dcalc",
+	        "-a", mask_path,
+	        "-b", dset_path,
+	        "-expr", "'ispositive(a)*iszero(b)*150'",
+	        "-prefix", dset_path,
+	        "-overwrite"
+	      ]
+
+	fmri_tools.utils.run_cmd( " ".join( cmd ) )
+
+	os.chdir( start_dir )
+
+
 def plot_task_perf( conf, paths, show_plot = False ):
 	"""Plot the task performance"""
 

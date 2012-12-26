@@ -189,7 +189,7 @@ def beta_to_psc( conf, paths ):
 
 	# these are the indices into the beta files for the data we want to convert
 	# checked below...
-	beta_bricks = "[60,61,62,63]"
+	beta_bricks = "[48,49,50,51]"
 
 	for hemi in [ "lh", "rh" ]:
 
