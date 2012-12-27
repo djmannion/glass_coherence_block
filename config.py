@@ -42,7 +42,7 @@ def _get_ana_conf( conf ):
 
 	rois = vl_rois + mask_rois
 
-	roi_labels = [ "V1", "V2", "V3", "hMTp", "DRA", "VRA" ]
+	roi_labels = [ "V1", "V2", "V3", "hMT+", "DRA", "VRA" ]
 
 	hrf_model = "SPMG1(%d)" % conf[ "exp" ][ "block_len_s" ]
 
@@ -291,7 +291,15 @@ def _get_subj_conf( subj_id = None ):
 	          "n_fmaps" : 1,
 	          "mot_base" : 7,
 	          "wedge_date" : "20111214",
-	          "extra_al_params" : None,
+	          "extra_al_params" : [ "-parang", "1", "-4", "6",
+	                                "-parang", "2", "8", "18",
+	                                "-parang", "3", "23", "33",
+	                                "-parang", "4", "-4", "-1",
+	                                "-parang", "5", "-10", "-5",
+	                                "-parang", "6", "-2", "2",
+	                                "-source_automask+2",
+	                                "-nocmass"
+	                              ],
 	          "node_k" : { "lh" : 124787,
 	                       "rh" : 127339
 	                     }
