@@ -269,7 +269,7 @@ def plot_psc( conf, paths, show_plot = False ):
 		ax.set_ylim( [ -0.325, 0.325 ] )
 
 		if i_roi == 3:
-			ax.set_ylabel( "Response (psc)" )
+			ax.set_ylabel( "Response (norm psc)" )
 			ax.set_xlabel( "Stimulus coherence (%)" )
 
 		ax.set_xticks( x )
