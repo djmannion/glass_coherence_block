@@ -1,6 +1,8 @@
 """Plots figures for the Glass coherence block design fMRI experiment
 """
 
+import os, os.path
+
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
@@ -61,7 +63,7 @@ def write_mask_plot_dataset( conf, paths, dset_path, hemi ):
 	cmd = [ "3dcalc",
 	        "-a", mask_path,
 	        "-b", dset_path,
-	        "-expr", "'ispositive(a)*iszero(b)*150'",
+	        "-expr", "'ispositive(a)*iszero(b)*70'",
 	        "-prefix", dset_path,
 	        "-overwrite"
 	      ]
