@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
 
+import fmri_tools.utils
+
 import glass_coherence_block.analysis.paths
 
 
@@ -63,7 +65,7 @@ def write_mask_plot_dataset( conf, paths, dset_path, hemi ):
 	cmd = [ "3dcalc",
 	        "-a", mask_path,
 	        "-b", dset_path,
-	        "-expr", "'ispositive(a)*iszero(b)*70'",
+	        "-expr", "'b+(ispositive(a)*iszero(b)*70)'",
 	        "-prefix", dset_path,
 	        "-overwrite"
 	      ]
